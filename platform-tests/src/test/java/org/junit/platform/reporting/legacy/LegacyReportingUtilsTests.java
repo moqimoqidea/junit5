@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,6 +11,7 @@
 package org.junit.platform.reporting.legacy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.platform.launcher.core.OutputDirectoryProviders.dummyOutputDirectoryProvider;
 import static org.mockito.Mockito.mock;
 
 import java.util.Set;
@@ -71,13 +72,13 @@ class LegacyReportingUtilsTests {
 	}
 
 	private String getClassName(UniqueId uniqueId) {
-		var testPlan = TestPlan.from(Set.of(engineDescriptor), mock());
+		var testPlan = TestPlan.from(Set.of(engineDescriptor), mock(), dummyOutputDirectoryProvider());
 		return LegacyReportingUtils.getClassName(testPlan, testPlan.getTestIdentifier(uniqueId));
 	}
 
 	@SuppressWarnings("deprecation")
 	private String getClassNameFromOldLocation(UniqueId uniqueId) {
-		var testPlan = TestPlan.from(Set.of(engineDescriptor), mock());
+		var testPlan = TestPlan.from(Set.of(engineDescriptor), mock(), dummyOutputDirectoryProvider());
 		return org.junit.platform.launcher.listeners.LegacyReportingUtils.getClassName(testPlan,
 			testPlan.getTestIdentifier(uniqueId));
 	}

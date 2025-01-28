@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,12 +10,16 @@
 
 package org.junit.jupiter.engine.descriptor;
 
-import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.unmodifiableList;
+import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import org.junit.jupiter.api.DisplayName;
@@ -28,9 +32,8 @@ import org.junit.jupiter.api.DisplayNameGenerator.Standard;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
-import org.junit.platform.commons.util.AnnotationUtils;
+import org.junit.platform.commons.support.ReflectionSupport;
 import org.junit.platform.commons.util.Preconditions;
-import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.commons.util.StringUtils;
 
 /**
@@ -89,40 +92,54 @@ final class DisplayNameUtils {
 		return displayNameSupplier.get();
 	}
 
-	static String determineDisplayNameForMethod(Class<?> testClass, Method testMethod,
-			JupiterConfiguration configuration) {
+	static String determineDisplayNameForMethod(Supplier<List<Class<?>>> enclosingInstanceTypes, Class<?> testClass,
+			Method testMethod, JupiterConfiguration configuration) {
 		return determineDisplayName(testMethod,
-			createDisplayNameSupplierForMethod(testClass, testMethod, configuration));
+			createDisplayNameSupplierForMethod(enclosingInstanceTypes, testClass, testMethod, configuration));
 	}
 
 	static Supplier<String> createDisplayNameSupplierForClass(Class<?> testClass, JupiterConfiguration configuration) {
-		return createDisplayNameSupplier(testClass, configuration,
-			generator -> generator.generateDisplayNameForClass(testClass));
+		return createDisplayNameSupplier(Collections::emptyList, testClass, configuration,
+			(generator, __) -> generator.generateDisplayNameForClass(testClass));
 	}
 
-	static Supplier<String> createDisplayNameSupplierForNestedClass(Class<?> testClass,
+	static Supplier<String> createDisplayNameSupplierForNestedClass(
+			Supplier<List<Class<?>>> enclosingInstanceTypesSupplier, Class<?> testClass,
 			JupiterConfiguration configuration) {
-		return createDisplayNameSupplier(testClass, configuration,
-			generator -> generator.generateDisplayNameForNestedClass(testClass));
+		return createDisplayNameSupplier(enclosingInstanceTypesSupplier, testClass, configuration,
+			(generator, enclosingInstanceTypes) -> generator.generateDisplayNameForNestedClass(enclosingInstanceTypes,
+				testClass));
 	}
 
-	private static Supplier<String> createDisplayNameSupplierForMethod(Class<?> testClass, Method testMethod,
+	private static Supplier<String> createDisplayNameSupplierForMethod(
+			Supplier<List<Class<?>>> enclosingInstanceTypesSupplier, Class<?> testClass, Method testMethod,
 			JupiterConfiguration configuration) {
-		return createDisplayNameSupplier(testClass, configuration,
-			generator -> generator.generateDisplayNameForMethod(testClass, testMethod));
+		return createDisplayNameSupplier(enclosingInstanceTypesSupplier, testClass, configuration,
+			(generator, enclosingInstanceTypes) -> generator.generateDisplayNameForMethod(enclosingInstanceTypes,
+				testClass, testMethod));
 	}
 
-	private static Supplier<String> createDisplayNameSupplier(Class<?> testClass, JupiterConfiguration configuration,
-			Function<DisplayNameGenerator, String> generatorFunction) {
-		return () -> findDisplayNameGenerator(testClass) //
-				.map(generatorFunction) //
-				.orElseGet(() -> generatorFunction.apply(configuration.getDefaultDisplayNameGenerator()));
+	private static Supplier<String> createDisplayNameSupplier(Supplier<List<Class<?>>> enclosingInstanceTypesSupplier,
+			Class<?> testClass, JupiterConfiguration configuration,
+			BiFunction<DisplayNameGenerator, List<Class<?>>, String> generatorFunction) {
+		return () -> {
+			List<Class<?>> enclosingInstanceTypes = makeUnmodifiable(enclosingInstanceTypesSupplier.get());
+			return findDisplayNameGenerator(enclosingInstanceTypes, testClass) //
+					.map(it -> generatorFunction.apply(it, enclosingInstanceTypes)) //
+					.orElseGet(() -> generatorFunction.apply(configuration.getDefaultDisplayNameGenerator(),
+						enclosingInstanceTypes));
+		};
 	}
 
-	private static Optional<DisplayNameGenerator> findDisplayNameGenerator(Class<?> testClass) {
+	private static <T> List<T> makeUnmodifiable(List<T> list) {
+		return list.isEmpty() ? emptyList() : unmodifiableList(list);
+	}
+
+	private static Optional<DisplayNameGenerator> findDisplayNameGenerator(List<Class<?>> enclosingInstanceTypes,
+			Class<?> testClass) {
 		Preconditions.notNull(testClass, "Test class must not be null");
 
-		return AnnotationUtils.findAnnotation(testClass, DisplayNameGeneration.class, true) //
+		return findAnnotation(testClass, DisplayNameGeneration.class, enclosingInstanceTypes) //
 				.map(DisplayNameGeneration::value) //
 				.map(displayNameGeneratorClass -> {
 					if (displayNameGeneratorClass == Standard.class) {
@@ -137,7 +154,7 @@ final class DisplayNameUtils {
 					if (displayNameGeneratorClass == IndicativeSentences.class) {
 						return indicativeSentencesGenerator;
 					}
-					return ReflectionUtils.newInstance(displayNameGeneratorClass);
+					return ReflectionSupport.newInstance(displayNameGeneratorClass);
 				});
 	}
 

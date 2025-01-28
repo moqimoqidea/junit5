@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -31,12 +31,12 @@ import org.apiguardian.api.API;
  *
  * <ul>
  * <li>{@link java.lang.String}</li>
- * <li>{@link java.util.Collection} and subtypes with a public no-arg constructor</li>
+ * <li>{@link java.util.Collection} and concrete subtypes with a public no-arg constructor</li>
  * <li>{@link java.util.List}</li>
  * <li>{@link java.util.Set}</li>
  * <li>{@link java.util.SortedSet}</li>
  * <li>{@link java.util.NavigableSet}</li>
- * <li>{@link java.util.Map} and subtypes with a public no-arg constructor</li>
+ * <li>{@link java.util.Map} and concrete subtypes with a public no-arg constructor</li>
  * <li>{@link java.util.SortedMap}</li>
  * <li>{@link java.util.NavigableMap}</li>
  * <li>primitive arrays &mdash; for example {@code int[]}, {@code char[][]}, etc.</li>

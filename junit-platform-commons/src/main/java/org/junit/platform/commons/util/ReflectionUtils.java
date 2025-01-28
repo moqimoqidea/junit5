@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,6 +11,7 @@
 package org.junit.platform.commons.util;
 
 import static java.lang.String.format;
+import static java.util.Collections.synchronizedMap;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -18,13 +19,14 @@ import static org.apiguardian.api.API.Status.DEPRECATED;
 import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.apiguardian.api.API.Status.STABLE;
 import static org.junit.platform.commons.util.CollectionUtils.toUnmodifiableList;
+import static org.junit.platform.commons.util.PackageNameUtils.getPackageName;
 import static org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode.BOTTOM_UP;
 import static org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode.TOP_DOWN;
 
 import java.io.File;
-import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +36,8 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,6 +62,10 @@ import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.function.Try;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
+import org.junit.platform.commons.support.DefaultResource;
+import org.junit.platform.commons.support.Resource;
+import org.junit.platform.commons.support.scanning.ClassFilter;
+import org.junit.platform.commons.support.scanning.ClasspathScanner;
 
 /**
  * Collection of utilities for working with the Java reflection APIs.
@@ -76,6 +84,27 @@ import org.junit.platform.commons.logging.LoggerFactory;
  */
 @API(status = INTERNAL, since = "1.0")
 public final class ReflectionUtils {
+
+	/**
+	 * Property name used to signal that legacy semantics should be used when
+	 * searching for fields and methods within a type hierarchy: {@value}.
+	 *
+	 * <p>Value must be either {@code true} or {@code false} (ignoring case);
+	 * defaults to {@code false}.
+	 *
+	 * <p>When set to {@code false} (either explicitly or implicitly), field and
+	 * method searches will adhere to Java semantics regarding whether a given
+	 * field or method is visible or overridden, where the latter only applies
+	 * to methods. When set to {@code true}, the semantics used in JUnit 5 prior
+	 * to JUnit 5.11 (JUnit Platform 1.11) will be used, which means that fields
+	 * and methods can hide, shadow, or supersede fields and methods in supertypes
+	 * based solely on the field's name or the method's signature, disregarding
+	 * the actual Java language semantics for visibility and whether a method
+	 * overrides another method.
+	 *
+	 * @since 1.11
+	 */
+	private static final String USE_LEGACY_SEARCH_SEMANTICS_PROPERTY_NAME = "junit.platform.reflection.search.useLegacySemantics";
 
 	private static final Logger logger = LoggerFactory.getLogger(ReflectionUtils.class);
 
@@ -97,23 +126,8 @@ public final class ReflectionUtils {
 		/**
 		 * Traverse the hierarchy using bottom-up semantics.
 		 */
-		BOTTOM_UP;
+		BOTTOM_UP
 	}
-
-	// Pattern: "[Ljava.lang.String;", "[[[[Ljava.lang.String;", etc.
-	private static final Pattern VM_INTERNAL_OBJECT_ARRAY_PATTERN = Pattern.compile("^(\\[+)L(.+);$");
-
-	/**
-	 * Pattern: "[x", "[[[[x", etc., where x is Z, B, C, D, F, I, J, S, etc.
-	 *
-	 * <p>The pattern intentionally captures the last bracket with the
-	 * capital letter so that the combination can be looked up via
-	 * {@link #classNameToTypeMap}. For example, the last matched group
-	 * will contain {@code "[I"} instead of {@code "I"}.
-	 *
-	 * @see Class#getName()
-	 */
-	private static final Pattern VM_INTERNAL_PRIMITIVE_ARRAY_PATTERN = Pattern.compile("^(\\[+)(\\[[ZBCDFIJS])$");
 
 	// Pattern: "java.lang.String[]", "int[]", "int[][][][]", etc.
 	// ?> => non-capturing atomic group
@@ -122,8 +136,14 @@ public final class ReflectionUtils {
 
 	private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
 
-	private static final ClasspathScanner classpathScanner = new ClasspathScanner(
-		ClassLoaderUtils::getDefaultClassLoader, ReflectionUtils::tryToLoadClass);
+	private static final ClasspathScanner classpathScanner = ClasspathScannerLoader.getInstance();
+
+	/**
+	 * Cache for equivalent methods on an interface implemented by the declaring class.
+	 * @since 1.11
+	 * @see #getInterfaceMethodIfPossible(Method, Class)
+	 */
+	private static final Map<Method, Method> interfaceMethodCache = synchronizedMap(new LruCache<>(255));
 
 	/**
 	 * Set of fully qualified class names for which no cycles have been detected
@@ -156,6 +176,7 @@ public final class ReflectionUtils {
 			long.class,
 			float.class,
 			double.class,
+			void.class,
 
 			boolean[].class,
 			byte[].class,
@@ -183,6 +204,7 @@ public final class ReflectionUtils {
 			Long.class,
 			Float.class,
 			Double.class,
+			Void.class,
 			String.class,
 
 			Boolean[].class,
@@ -216,7 +238,7 @@ public final class ReflectionUtils {
 
 		classNameToTypeMap = Collections.unmodifiableMap(classNamesToTypes);
 
-		Map<Class<?>, Class<?>> primitivesToWrappers = new IdentityHashMap<>(8);
+		Map<Class<?>, Class<?>> primitivesToWrappers = new IdentityHashMap<>(9);
 
 		primitivesToWrappers.put(boolean.class, Boolean.class);
 		primitivesToWrappers.put(byte.class, Byte.class);
@@ -229,6 +251,8 @@ public final class ReflectionUtils {
 
 		primitiveToWrapperMap = Collections.unmodifiableMap(primitivesToWrappers);
 	}
+
+	static volatile boolean useLegacySearchSemantics = getLegacySearchSemanticsFlag();
 
 	public static boolean isPublic(Class<?> clazz) {
 		Preconditions.notNull(clazz, "Class must not be null");
@@ -341,8 +365,33 @@ public final class ReflectionUtils {
 		return !isStatic(clazz) && clazz.isMemberClass();
 	}
 
-	public static boolean returnsVoid(Method method) {
-		return method.getReturnType().equals(Void.TYPE);
+	/**
+	 * {@return whether the supplied {@code object} is an instance of a record class}
+	 * @since 1.12
+	 */
+	@API(status = INTERNAL, since = "1.12")
+	public static boolean isRecordObject(Object object) {
+		return object != null && isRecordClass(object.getClass());
+	}
+
+	/**
+	 * {@return whether the supplied {@code clazz} is a record class}
+	 * @since 1.12
+	 */
+	@API(status = INTERNAL, since = "1.12")
+	public static boolean isRecordClass(Class<?> clazz) {
+		Class<?> superclass = clazz.getSuperclass();
+		return superclass != null && "java.lang.Record".equals(superclass.getName());
+	}
+
+	/**
+	 * Determine if the return type of the supplied method is primitive {@code void}.
+	 *
+	 * @param method the method to test; never {@code null}
+	 * @return {@code true} if the method's return type is {@code void}
+	 */
+	public static boolean returnsPrimitiveVoid(Method method) {
+		return method.getReturnType() == void.class;
 	}
 
 	/**
@@ -373,8 +422,7 @@ public final class ReflectionUtils {
 	 *
 	 * <p>In contrast to {@link Class#isAssignableFrom(Class)}, this method
 	 * returns {@code true} if the target type represents a primitive type whose
-	 * wrapper matches the supplied source type. In addition, this method
-	 * also supports
+	 * wrapper matches the supplied source type. In addition, this method also supports
 	 * <a href="https://docs.oracle.com/javase/specs/jls/se8/html/jls-5.html#jls-5.1.2">
 	 * widening conversions</a> for primitive target types.
 	 *
@@ -408,9 +456,8 @@ public final class ReflectionUtils {
 	 * type for the purpose of reflective method invocations.
 	 *
 	 * <p>In contrast to {@link Class#isInstance(Object)}, this method returns
-	 * {@code true} if the target type represents a primitive type whose
-	 * wrapper matches the supplied object's type. In addition, this method
-	 * also supports
+	 * {@code true} if the target type represents a primitive type whose wrapper
+	 * matches the supplied object's type. In addition, this method also supports
 	 * <a href="https://docs.oracle.com/javase/specs/jls/se8/html/jls-5.html#jls-5.1.2">
 	 * widening conversions</a> for primitive types and their corresponding
 	 * wrapper types.
@@ -771,6 +818,25 @@ public final class ReflectionUtils {
 	}
 
 	/**
+	 * Load a class by its <em>primitive name</em> or <em>fully qualified name</em>,
+	 * using the supplied {@link ClassLoader}.
+	 *
+	 * <p>See {@link org.junit.platform.commons.support.ReflectionSupport#tryToLoadClass(String)}
+	 * for details on support for class names for arrays.
+	 *
+	 * @param name the name of the class to load; never {@code null} or blank
+	 * @param classLoader the {@code ClassLoader} to use; never {@code null}
+	 * @throws JUnitException if the class could not be loaded
+	 * @since 1.11
+	 * @see #tryToLoadClass(String, ClassLoader)
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static Class<?> loadRequiredClass(String name, ClassLoader classLoader) throws JUnitException {
+		return tryToLoadClass(name, classLoader).getOrThrow(
+			cause -> new JUnitException(format("Could not load class [%s]", name), cause));
+	}
+
+	/**
 	 * Try to load a class by its <em>primitive name</em> or <em>fully qualified
 	 * name</em>, using the supplied {@link ClassLoader}.
 	 *
@@ -793,32 +859,8 @@ public final class ReflectionUtils {
 		}
 
 		return Try.call(() -> {
-			Matcher matcher;
-
-			// Primitive arrays such as "[I", "[[[[D", etc.
-			matcher = VM_INTERNAL_PRIMITIVE_ARRAY_PATTERN.matcher(trimmedName);
-			if (matcher.matches()) {
-				String brackets = matcher.group(1);
-				String componentTypeName = matcher.group(2);
-				// Calculate dimensions by counting brackets.
-				int dimensions = brackets.length();
-
-				return loadArrayType(classLoader, componentTypeName, dimensions);
-			}
-
-			// Object arrays such as "[Ljava.lang.String;", "[[[[Ljava.lang.String;", etc.
-			matcher = VM_INTERNAL_OBJECT_ARRAY_PATTERN.matcher(trimmedName);
-			if (matcher.matches()) {
-				String brackets = matcher.group(1);
-				String componentTypeName = matcher.group(2);
-				// Calculate dimensions by counting brackets.
-				int dimensions = brackets.length();
-
-				return loadArrayType(classLoader, componentTypeName, dimensions);
-			}
-
 			// Arrays such as "java.lang.String[]", "int[]", "int[][][][]", etc.
-			matcher = SOURCE_CODE_SYNTAX_ARRAY_PATTERN.matcher(trimmedName);
+			Matcher matcher = SOURCE_CODE_SYNTAX_ARRAY_PATTERN.matcher(trimmedName);
 			if (matcher.matches()) {
 				String componentTypeName = matcher.group(1);
 				String bracketPairs = matcher.group(2);
@@ -829,7 +871,55 @@ public final class ReflectionUtils {
 			}
 
 			// Fallback to standard VM class loading
-			return classLoader.loadClass(trimmedName);
+			return Class.forName(trimmedName, false, classLoader);
+		});
+	}
+
+	/**
+	 * Try to get {@linkplain Resource resources} by their name, using the
+	 * {@link ClassLoaderUtils#getDefaultClassLoader()}.
+	 *
+	 * <p>See {@link org.junit.platform.commons.support.ReflectionSupport#tryToGetResources(String)}
+	 * for details.
+	 *
+	 * @param classpathResourceName the name of the resources to load; never {@code null} or blank
+	 * @since 1.12
+	 * @see org.junit.platform.commons.support.ReflectionSupport#tryToGetResources(String, ClassLoader)
+	 */
+	@API(status = INTERNAL, since = "1.12")
+	public static Try<Set<Resource>> tryToGetResources(String classpathResourceName) {
+		return tryToGetResources(classpathResourceName, ClassLoaderUtils.getDefaultClassLoader());
+	}
+
+	/**
+	 * Try to get {@linkplain Resource resources} by their name, using the
+	 * supplied {@link ClassLoader}.
+	 *
+	 * <p>See {@link org.junit.platform.commons.support.ReflectionSupport#tryToGetResources(String, ClassLoader)}
+	 * for details.
+	 *
+	 * @param classpathResourceName the name of the resources to load; never {@code null} or blank
+	 * @param classLoader the {@code ClassLoader} to use; never {@code null}
+	 * @since 1.12
+	 */
+	@API(status = INTERNAL, since = "1.12")
+	public static Try<Set<Resource>> tryToGetResources(String classpathResourceName, ClassLoader classLoader) {
+		Preconditions.notBlank(classpathResourceName, "Resource name must not be null or blank");
+		Preconditions.notNull(classLoader, "Class loader must not be null");
+		boolean startsWithSlash = classpathResourceName.startsWith("/");
+		String canonicalClasspathResourceName = (startsWithSlash ? classpathResourceName.substring(1)
+				: classpathResourceName);
+
+		return Try.call(() -> {
+			List<URL> resources = Collections.list(classLoader.getResources(canonicalClasspathResourceName));
+			return resources.stream().map(url -> {
+				try {
+					return new DefaultResource(canonicalClasspathResourceName, url.toURI());
+				}
+				catch (URISyntaxException e) {
+					throw ExceptionUtils.throwAsUncheckedException(e);
+				}
+			}).collect(toCollection(LinkedHashSet::new));
 		});
 	}
 
@@ -838,7 +928,7 @@ public final class ReflectionUtils {
 
 		Class<?> componentType = classNameToTypeMap.containsKey(componentTypeName)
 				? classNameToTypeMap.get(componentTypeName)
-				: classLoader.loadClass(componentTypeName);
+				: Class.forName(componentTypeName, false, classLoader);
 
 		return Array.newInstance(componentType, new int[dimensions]).getClass();
 	}
@@ -873,13 +963,35 @@ public final class ReflectionUtils {
 	 * @param methodName the name of the method; never {@code null} or blank
 	 * @param parameterTypes the parameter types of the method; may be {@code null} or empty
 	 * @return fully qualified method name; never {@code null}
-	 * @see #getFullyQualifiedMethodName(Class, Method)
 	 */
 	public static String getFullyQualifiedMethodName(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
 		Preconditions.notNull(clazz, "Class must not be null");
-		Preconditions.notBlank(methodName, "Method name must not be null or blank");
 
-		return String.format("%s#%s(%s)", clazz.getName(), methodName, ClassUtils.nullSafeToString(parameterTypes));
+		return getFullyQualifiedMethodName(clazz.getName(), methodName, ClassUtils.nullSafeToString(parameterTypes));
+	}
+
+	/**
+	 * Build the <em>fully qualified method name</em> for the method described by the
+	 * supplied class name, method name, and parameter types.
+	 *
+	 * <p>Note that the class is not necessarily the class in which the method is
+	 * declared.
+	 *
+	 * @param className the name of the class from which the method should be referenced;
+	 * never {@code null}
+	 * @param methodName the name of the method; never {@code null} or blank
+	 * @param parameterTypeNames the parameter type names of the method; may be
+	 * empty but not {@code null}
+	 * @return fully qualified method name; never {@code null}
+	 * @since 1.11
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static String getFullyQualifiedMethodName(String className, String methodName, String parameterTypeNames) {
+		Preconditions.notBlank(className, "Class name must not be null or blank");
+		Preconditions.notBlank(methodName, "Method name must not be null or blank");
+		Preconditions.notNull(parameterTypeNames, "Parameter type names must not be null");
+
+		return String.format("%s#%s(%s)", className, methodName, parameterTypeNames);
 	}
 
 	/**
@@ -928,54 +1040,30 @@ public final class ReflectionUtils {
 	}
 
 	/**
-	 * Get the outermost instance of the required type, searching recursively
-	 * through enclosing instances.
+	 * Parse the supplied <em>fully qualified field name</em> into a 2-element
+	 * {@code String[]} with the following content.
 	 *
-	 * <p>If the supplied inner object is of the required type, it will be
-	 * returned.
+	 * <ul>
+	 *   <li>index {@code 0}: the fully qualified class name</li>
+	 *   <li>index {@code 1}: the name of the field</li>
+	 * </ul>
 	 *
-	 * @param inner the inner object from which to begin the search; never {@code null}
-	 * @param requiredType the required type of the outermost instance; never {@code null}
-	 * @return an {@code Optional} containing the outermost instance; never {@code null}
-	 * but potentially empty
-	 * @deprecated Please discontinue use of this method since it relies on internal
-	 * implementation details of the JDK that may not work in the future.
+	 * @param fullyQualifiedFieldName a <em>fully qualified field name</em>,
+	 * never {@code null} or blank
+	 * @return a 2-element array of strings containing the parsed values
+	 * @since 1.11
 	 */
-	@API(status = DEPRECATED, since = "1.4")
-	@Deprecated
-	public static Optional<Object> getOutermostInstance(Object inner, Class<?> requiredType) {
-		Preconditions.notNull(inner, "inner object must not be null");
-		Preconditions.notNull(requiredType, "requiredType must not be null");
+	@API(status = INTERNAL, since = "1.11")
+	public static String[] parseFullyQualifiedFieldName(String fullyQualifiedFieldName) {
+		Preconditions.notBlank(fullyQualifiedFieldName, "fullyQualifiedFieldName must not be null or blank");
 
-		if (requiredType.isInstance(inner)) {
-			return Optional.of(inner);
-		}
-
-		Optional<Object> candidate = getOuterInstance(inner);
-		if (candidate.isPresent()) {
-			return getOutermostInstance(candidate.get(), requiredType);
-		}
-
-		return Optional.empty();
-	}
-
-	private static Optional<Object> getOuterInstance(Object inner) {
-		// This is risky since it depends on the name of the field which is nowhere guaranteed
-		// but has been stable so far in all JDKs
-
-		// @formatter:off
-		return Arrays.stream(inner.getClass().getDeclaredFields())
-				.filter(field -> field.getName().startsWith("this$"))
-				.findFirst()
-				.map(field -> {
-					try {
-						return makeAccessible(field).get(inner);
-					}
-					catch (Throwable t) {
-						throw ExceptionUtils.throwAsUncheckedException(t);
-					}
-				});
-		// @formatter:on
+		int indexOfHashtag = fullyQualifiedFieldName.indexOf('#');
+		boolean validSyntax = (indexOfHashtag > 0) && (indexOfHashtag < fullyQualifiedFieldName.length() - 1);
+		Preconditions.condition(validSyntax,
+			() -> "[" + fullyQualifiedFieldName + "] is not a valid fully qualified field name: "
+					+ "it must start with a fully qualified class name followed by a '#' "
+					+ "and then the field name.");
+		return fullyQualifiedFieldName.split("#");
 	}
 
 	public static Set<Path> getAllClasspathRootDirectories() {
@@ -1015,10 +1103,24 @@ public final class ReflectionUtils {
 	}
 
 	/**
+	 * @since 1.11
+	 */
+	public static List<Resource> findAllResourcesInClasspathRoot(URI root, Predicate<Resource> resourceFilter) {
+		return Collections.unmodifiableList(classpathScanner.scanForResourcesInClasspathRoot(root, resourceFilter));
+	}
+
+	/**
 	 * @since 1.10
 	 */
 	public static Stream<Class<?>> streamAllClassesInClasspathRoot(URI root, ClassFilter classFilter) {
 		return findAllClassesInClasspathRoot(root, classFilter).stream();
+	}
+
+	/**
+	 * @since 1.11
+	 */
+	public static Stream<Resource> streamAllResourcesInClasspathRoot(URI root, Predicate<Resource> resourceFilter) {
+		return findAllResourcesInClasspathRoot(root, resourceFilter).stream();
 	}
 
 	/**
@@ -1047,10 +1149,26 @@ public final class ReflectionUtils {
 	}
 
 	/**
+	 * @since 1.11
+	 */
+	public static List<Resource> findAllResourcesInPackage(String basePackageName, Predicate<Resource> resourceFilter) {
+		return Collections.unmodifiableList(
+			classpathScanner.scanForResourcesInPackage(basePackageName, resourceFilter));
+	}
+
+	/**
 	 * @since 1.10
 	 */
 	public static Stream<Class<?>> streamAllClassesInPackage(String basePackageName, ClassFilter classFilter) {
 		return findAllClassesInPackage(basePackageName, classFilter).stream();
+	}
+
+	/**
+	 * @since 1.11
+	 */
+	public static Stream<Resource> streamAllResourcesInPackage(String basePackageName,
+			Predicate<Resource> resourceFilter) {
+		return findAllResourcesInPackage(basePackageName, resourceFilter).stream();
 	}
 
 	/**
@@ -1080,10 +1198,24 @@ public final class ReflectionUtils {
 	}
 
 	/**
+	 * @since 1.11
+	 */
+	public static List<Resource> findAllResourcesInModule(String moduleName, Predicate<Resource> resourceFilter) {
+		return Collections.unmodifiableList(ModuleUtils.findAllResourcesInModule(moduleName, resourceFilter));
+	}
+
+	/**
 	 * @since 1.10
 	 */
 	public static Stream<Class<?>> streamAllClassesInModule(String moduleName, ClassFilter classFilter) {
 		return findAllClassesInModule(moduleName, classFilter).stream();
+	}
+
+	/**
+	 * @since 1.11
+	 */
+	public static Stream<Resource> streamAllResourcesInModule(String moduleName, Predicate<Resource> resourceFilter) {
+		return findAllResourcesInModule(moduleName, resourceFilter).stream();
 	}
 
 	/**
@@ -1238,6 +1370,7 @@ public final class ReflectionUtils {
 	 */
 	public static List<Field> findFields(Class<?> clazz, Predicate<Field> predicate,
 			HierarchyTraversalMode traversalMode) {
+
 		return streamFields(clazz, predicate, traversalMode).collect(toUnmodifiableList());
 	}
 
@@ -1252,7 +1385,11 @@ public final class ReflectionUtils {
 		Preconditions.notNull(predicate, "Predicate must not be null");
 		Preconditions.notNull(traversalMode, "HierarchyTraversalMode must not be null");
 
-		return findAllFieldsInHierarchy(clazz, traversalMode).stream().filter(predicate);
+		// @formatter:off
+		return findAllFieldsInHierarchy(clazz, traversalMode).stream()
+				.filter(predicate)
+				.distinct();
+		// @formatter:on
 	}
 
 	private static List<Field> findAllFieldsInHierarchy(Class<?> clazz, HierarchyTraversalMode traversalMode) {
@@ -1353,6 +1490,53 @@ public final class ReflectionUtils {
 	}
 
 	/**
+	 * Determine a corresponding interface method for the given method handle, if possible.
+	 * <p>This is particularly useful for arriving at a public exported type on the Java
+	 * Module System which can be reflectively invoked without an illegal access warning.
+	 * @param method the method to be invoked, potentially from an implementation class;
+	 * never {@code null}
+	 * @param targetClass the target class to check for declared interfaces;
+	 * potentially {@code null}
+	 * @return the corresponding interface method, or the original method if none found
+	 * @since 1.11
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static Method getInterfaceMethodIfPossible(Method method, Class<?> targetClass) {
+		if (!isPublic(method) || method.getDeclaringClass().isInterface()) {
+			return method;
+		}
+		// Try cached version of method in its declaring class
+		Method result = interfaceMethodCache.computeIfAbsent(method,
+			m -> findInterfaceMethodIfPossible(m, m.getParameterTypes(), m.getDeclaringClass(), Object.class));
+		if (result == method && targetClass != null) {
+			// No interface method found yet -> try given target class (possibly a subclass of the
+			// declaring class, late-binding a base class method to a subclass-declared interface:
+			// see e.g. HashMap.HashIterator.hasNext)
+			result = findInterfaceMethodIfPossible(method, method.getParameterTypes(), targetClass,
+				method.getDeclaringClass());
+		}
+		return result;
+	}
+
+	private static Method findInterfaceMethodIfPossible(Method method, Class<?>[] parameterTypes, Class<?> startClass,
+			Class<?> endClass) {
+
+		Class<?> current = startClass;
+		while (current != null && current != endClass) {
+			for (Class<?> ifc : current.getInterfaces()) {
+				try {
+					return ifc.getMethod(method.getName(), parameterTypes);
+				}
+				catch (NoSuchMethodException ex) {
+					// ignore
+				}
+			}
+			current = current.getSuperclass();
+		}
+		return method;
+	}
+
+	/**
 	 * @see org.junit.platform.commons.support.ReflectionSupport#findMethod(Class, String, String)
 	 */
 	public static Optional<Method> findMethod(Class<?> clazz, String methodName, String parameterTypeNames) {
@@ -1361,7 +1545,8 @@ public final class ReflectionUtils {
 		return findMethod(clazz, methodName, resolveParameterTypes(clazz, methodName, parameterTypeNames));
 	}
 
-	private static Class<?>[] resolveParameterTypes(Class<?> clazz, String methodName, String parameterTypeNames) {
+	@API(status = INTERNAL, since = "1.10")
+	public static Class<?>[] resolveParameterTypes(Class<?> clazz, String methodName, String parameterTypeNames) {
 		if (StringUtils.isBlank(parameterTypeNames)) {
 			return EMPTY_CLASS_ARRAY;
 		}
@@ -1375,8 +1560,10 @@ public final class ReflectionUtils {
 	}
 
 	private static Class<?> loadRequiredParameterType(Class<?> clazz, String methodName, String typeName) {
+		ClassLoader classLoader = ClassLoaderUtils.getClassLoader(clazz);
+
 		// @formatter:off
-		return tryToLoadClass(typeName)
+		return tryToLoadClass(typeName, classLoader)
 				.getOrThrow(cause -> new JUnitException(
 						String.format("Failed to load parameter type [%s] for method [%s] in class [%s].",
 								typeName, methodName, clazz.getName()), cause));
@@ -1453,8 +1640,7 @@ public final class ReflectionUtils {
 	 * that match the specified {@code predicate}, using top-down search semantics
 	 * within the type hierarchy.
 	 *
-	 * <p>The results will not contain instance methods that are <em>overridden</em>
-	 * or {@code static} methods that are <em>hidden</em>.
+	 * <p>The results will not contain instance methods that are <em>overridden</em>.
 	 *
 	 * @param clazz the class or interface in which to find the methods; never {@code null}
 	 * @param predicate the method filter; never {@code null}
@@ -1506,10 +1692,10 @@ public final class ReflectionUtils {
 				.filter(method -> !method.isSynthetic())
 				.collect(toList());
 		List<Method> superclassMethods = getSuperclassMethods(clazz, traversalMode).stream()
-				.filter(method -> !isMethodShadowedByLocalMethods(method, localMethods))
+				.filter(method -> !isMethodOverriddenByLocalMethods(method, localMethods))
 				.collect(toList());
 		List<Method> interfaceMethods = getInterfaceMethods(clazz, traversalMode).stream()
-				.filter(method -> !isMethodShadowedByLocalMethods(method, localMethods))
+				.filter(method -> !isMethodOverriddenByLocalMethods(method, localMethods))
 				.collect(toList());
 		// @formatter:on
 
@@ -1654,7 +1840,7 @@ public final class ReflectionUtils {
 					.collect(toList());
 
 			List<Method> superinterfaceMethods = getInterfaceMethods(ifc, traversalMode).stream()
-					.filter(method -> !isMethodShadowedByLocalMethods(method, localInterfaceMethods))
+					.filter(method -> !isMethodOverriddenByLocalMethods(method, localInterfaceMethods))
 					.collect(toList());
 			// @formatter:on
 
@@ -1700,7 +1886,10 @@ public final class ReflectionUtils {
 	}
 
 	private static boolean isFieldShadowedByLocalFields(Field field, List<Field> localFields) {
-		return localFields.stream().anyMatch(local -> local.getName().equals(field.getName()));
+		if (useLegacySearchSemantics) {
+			return localFields.stream().anyMatch(local -> local.getName().equals(field.getName()));
+		}
+		return false;
 	}
 
 	private static List<Method> getSuperclassMethods(Class<?> clazz, HierarchyTraversalMode traversalMode) {
@@ -1711,12 +1900,40 @@ public final class ReflectionUtils {
 		return findAllMethodsInHierarchy(superclass, traversalMode);
 	}
 
-	private static boolean isMethodShadowedByLocalMethods(Method method, List<Method> localMethods) {
-		return localMethods.stream().anyMatch(local -> isMethodShadowedBy(method, local));
+	private static boolean isMethodOverriddenByLocalMethods(Method method, List<Method> localMethods) {
+		return localMethods.stream().anyMatch(local -> isMethodOverriddenBy(method, local));
 	}
 
-	private static boolean isMethodShadowedBy(Method upper, Method lower) {
+	private static boolean isMethodOverriddenBy(Method upper, Method lower) {
+		// If legacy search semantics are enabled, skip to hasCompatibleSignature() check.
+		if (!useLegacySearchSemantics) {
+			// A static method cannot override anything.
+			if (Modifier.isStatic(lower.getModifiers())) {
+				return false;
+			}
+
+			// Cannot override a private, static, or final method.
+			int modifiers = upper.getModifiers();
+			if (Modifier.isPrivate(modifiers) || Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
+				return false;
+			}
+
+			// Cannot override a package-private method in another package.
+			if (isPackagePrivate(upper) && !declaredInSamePackage(upper, lower)) {
+				return false;
+			}
+		}
+
 		return hasCompatibleSignature(upper, lower.getName(), lower.getParameterTypes());
+	}
+
+	private static boolean isPackagePrivate(Member member) {
+		int modifiers = member.getModifiers();
+		return !(Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers) || Modifier.isPrivate(modifiers));
+	}
+
+	private static boolean declaredInSamePackage(Method m1, Method m2) {
+		return getPackageName(m1.getDeclaringClass()).equals(getPackageName(m2.getDeclaringClass()));
 	}
 
 	/**
@@ -1732,15 +1949,16 @@ public final class ReflectionUtils {
 		if (parameterTypes.length != candidate.getParameterCount()) {
 			return false;
 		}
+		Class<?>[] candidateParameterTypes = candidate.getParameterTypes();
 		// trivial case: parameter types exactly match
-		if (Arrays.equals(parameterTypes, candidate.getParameterTypes())) {
+		if (Arrays.equals(parameterTypes, candidateParameterTypes)) {
 			return true;
 		}
 		// param count is equal, but types do not match exactly: check for method sub-signatures
 		// https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.4.2
 		for (int i = 0; i < parameterTypes.length; i++) {
 			Class<?> lowerType = parameterTypes[i];
-			Class<?> upperType = candidate.getParameterTypes()[i];
+			Class<?> upperType = candidateParameterTypes[i];
 			if (!upperType.isAssignableFrom(lowerType)) {
 				return false;
 			}
@@ -1761,12 +1979,22 @@ public final class ReflectionUtils {
 		return type instanceof TypeVariable || type instanceof GenericArrayType;
 	}
 
+	@API(status = INTERNAL, since = "1.11")
 	@SuppressWarnings("deprecation") // "AccessibleObject.isAccessible()" is deprecated in Java 9
-	public static <T extends AccessibleObject> T makeAccessible(T object) {
-		if (!object.isAccessible()) {
-			object.setAccessible(true);
+	public static <T extends Executable> T makeAccessible(T executable) {
+		if ((!isPublic(executable) || !isPublic(executable.getDeclaringClass())) && !executable.isAccessible()) {
+			executable.setAccessible(true);
 		}
-		return object;
+		return executable;
+	}
+
+	@API(status = INTERNAL, since = "1.12")
+	@SuppressWarnings("deprecation") // "AccessibleObject.isAccessible()" is deprecated in Java 9
+	public static Field makeAccessible(Field field) {
+		if ((!isPublic(field) || !isPublic(field.getDeclaringClass()) || isFinal(field)) && !field.isAccessible()) {
+			field.setAccessible(true);
+		}
+		return field;
 	}
 
 	/**
@@ -1821,6 +2049,18 @@ public final class ReflectionUtils {
 			return getUnderlyingCause(((InvocationTargetException) t).getTargetException());
 		}
 		return t;
+	}
+
+	private static boolean getLegacySearchSemanticsFlag() {
+		String rawValue = System.getProperty(USE_LEGACY_SEARCH_SEMANTICS_PROPERTY_NAME);
+		if (StringUtils.isBlank(rawValue)) {
+			return false;
+		}
+		String value = rawValue.trim().toLowerCase();
+		boolean isTrue = "true".equals(value);
+		Preconditions.condition(isTrue || "false".equals(value), () -> USE_LEGACY_SEARCH_SEMANTICS_PROPERTY_NAME
+				+ " property must be 'true' or 'false' (ignoring case): " + rawValue);
+		return isTrue;
 	}
 
 }

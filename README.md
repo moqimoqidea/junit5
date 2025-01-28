@@ -1,13 +1,19 @@
 # <img src="https://junit.org/junit5/assets/img/junit5-logo.png" align="right" width="100">JUnit 5
 
-This repository is the home of the next generation of JUnit, _JUnit 5_.
+This repository is the home of _JUnit 5_.
+
+## Sponsors
 
 [![Support JUnit](https://img.shields.io/badge/%F0%9F%92%9A-Support%20JUnit-brightgreen.svg)](https://junit.org/sponsoring)
 
+* **Gold Sponsors:** [JetBrains](https://jb.gg/junit-logo)
+* **Silver Sponsors:** [Micromata](https://www.micromata.de), [Quo Card](https://quo-digital.jp)
+* **Bronze Sponsors:** [Premium Minds](https://www.premium-minds.com), [Testmo](https://www.testmo.com), [codefortynine](https://codefortynine.com), [Info Support](https://www.infosupport.com), [Stiltsoft](https://stiltsoft.com), [Code Intelligence](https://www.code-intelligence.com), [Route4Me](https://route4me.com/), [Testiny](https://www.testiny.io/)
+
 ## Latest Releases
 
-- General Availability (GA): [JUnit 5.9.2](https://github.com/junit-team/junit5/releases/tag/r5.9.2) (January 10, 2023)
-- Preview (Milestone/Release Candidate): n/a
+- General Availability (GA): [JUnit 5.11.4](https://github.com/junit-team/junit5/releases/tag/r5.11.4) (December 16, 2024)
+- Preview (Milestone/Release Candidate): N/A
 
 ## Documentation
 
@@ -43,17 +49,19 @@ builds of the next OpenJDK.
 Code coverage using [JaCoCo] for the latest build is available on [Codecov].
 
 A code coverage report can also be generated locally via the [Gradle Wrapper] by
-executing `./gradlew -PenableJaCoCo clean jacocoRootReport`. The results will be available
+executing `./gradlew clean jacocoRootReport`. The results will be available
 in `build/reports/jacoco/jacocoRootReport/html/index.html`.
 
-## Gradle Enterprise
+## Develocity
 
-[![Revved up by Gradle Enterprise](https://img.shields.io/badge/Revved%20up%20by-Gradle%20Enterprise-06A0CE?logo=Gradle&labelColor=02303A)](https://ge.junit.org/scans)
+[![Revved up by Develocity](https://img.shields.io/badge/Revved%20up%20by-Develocity-06A0CE?logo=Gradle&labelColor=02303A)](https://ge.junit.org/scans)
 
-JUnit 5 utilizes [Gradle Enterprise](https://gradle.com/) for _Build Scans_, _Build Cache_, and _Test Distribution_.
+JUnit 5 utilizes [Develocity](https://gradle.com/) for [Build Scans](https://scans.gradle.com/),
+[Build Cache](https://docs.gradle.org/current/userguide/build_cache.html), and
+[Predictive Test Selection](https://docs.gradle.com/enterprise/predictive-test-selection/).
 
 The latest Build Scans are available on [ge.junit.org](https://ge.junit.org/). Currently,
-only core team members can publish Build Scans and use Test Distribution on that server.
+only core team members can publish Build Scans on that server.
 You can, however, publish a Build Scan to [scans.gradle.com](https://scans.gradle.com/) by
 using the `--scan` parameter explicitly.
 
@@ -62,7 +70,7 @@ task outputs from previous CI builds.
 
 ## Building from Source
 
-You need [JDK 17] to build JUnit 5. [Gradle toolchains] are used to detect and
+You need [JDK 21] to build JUnit 5. [Gradle toolchains] are used to detect and
 potentially download additional JDKs for compilation and test execution.
 
 All modules can be _built_ and _tested_ with the [Gradle Wrapper] using the following command.
@@ -77,6 +85,10 @@ consumption in other projects via the following command.
 `./gradlew publishToMavenLocal`
 
 ## Dependency Metadata
+
+[![JUnit Jupiter version](https://img.shields.io/maven-central/v/org.junit.jupiter/junit-jupiter/5..svg?color=25a162&label=Jupiter)](https://central.sonatype.com/search?namespace=org.junit.jupiter)
+[![JUnit Vintage version](https://img.shields.io/maven-central/v/org.junit.vintage/junit-vintage-engine/5..svg?color=25a162&label=Vintage)](https://central.sonatype.com/search?namespace=org.junit.vintage)
+[![JUnit Platform version](https://img.shields.io/maven-central/v/org.junit.platform/junit-platform-commons/1..svg?color=25a162&label=Platform)](https://central.sonatype.com/search?namespace=org.junit.platform)
 
 Consult the [Dependency Metadata] section of the [User Guide] for a list of all artifacts
 of the JUnit Platform, JUnit Jupiter, and JUnit Vintage.
@@ -93,7 +105,7 @@ See also <https://repo1.maven.org/maven2/org/junit/> for releases and
 [Gradle Wrapper]: https://docs.gradle.org/current/userguide/gradle_wrapper.html#sec:using_wrapper
 [JaCoCo]: https://www.eclemma.org/jacoco/
 [Javadoc]: https://junit.org/junit5/docs/current/api/
-[JDK 17]: https://foojay.io/almanac/java-17/
+[JDK 21]: https://javaalmanac.io/jdk/21/
 [Release Notes]: https://junit.org/junit5/docs/current/release-notes/
 [Samples]: https://github.com/junit-team/junit5-samples
 [StackOverflow]: https://stackoverflow.com/questions/tagged/junit5

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,6 +14,7 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.synchronizedSet;
 import static java.util.Collections.unmodifiableSet;
 import static org.apiguardian.api.API.Status.DEPRECATED;
+import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.apiguardian.api.API.Status.MAINTAINED;
 import static org.apiguardian.api.API.Status.STABLE;
@@ -32,8 +33,8 @@ import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.TestDescriptor;
-import org.junit.platform.engine.TestDescriptor.Visitor;
 import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.reporting.OutputDirectoryProvider;
 
 /**
  * {@code TestPlan} describes the tree of tests and containers as discovered
@@ -70,6 +71,7 @@ public class TestPlan {
 	private final boolean containsTests;
 
 	private final ConfigurationParameters configurationParameters;
+	private final OutputDirectoryProvider outputDirectoryProvider;
 
 	/**
 	 * Construct a new {@code TestPlan} from the supplied collection of
@@ -82,24 +84,28 @@ public class TestPlan {
 	 * plan should be created; never {@code null}
 	 * @param configurationParameters the {@code ConfigurationParameters} for
 	 * this test plan; never {@code null}
+	 * @param outputDirectoryProvider the {@code OutputDirectoryProvider} for
+	 * this test plan; never {@code null}
 	 * @return a new test plan
 	 */
-	@API(status = INTERNAL, since = "1.0")
+	@API(status = INTERNAL, since = "1.12")
 	public static TestPlan from(Collection<TestDescriptor> engineDescriptors,
-			ConfigurationParameters configurationParameters) {
+			ConfigurationParameters configurationParameters, OutputDirectoryProvider outputDirectoryProvider) {
 		Preconditions.notNull(engineDescriptors, "Cannot create TestPlan from a null collection of TestDescriptors");
 		Preconditions.notNull(configurationParameters, "Cannot create TestPlan from null ConfigurationParameters");
 		TestPlan testPlan = new TestPlan(engineDescriptors.stream().anyMatch(TestDescriptor::containsTests),
-			configurationParameters);
-		Visitor visitor = descriptor -> testPlan.addInternal(TestIdentifier.from(descriptor));
+			configurationParameters, outputDirectoryProvider);
+		TestDescriptor.Visitor visitor = descriptor -> testPlan.addInternal(TestIdentifier.from(descriptor));
 		engineDescriptors.forEach(engineDescriptor -> engineDescriptor.accept(visitor));
 		return testPlan;
 	}
 
 	@API(status = INTERNAL, since = "1.4")
-	protected TestPlan(boolean containsTests, ConfigurationParameters configurationParameters) {
+	protected TestPlan(boolean containsTests, ConfigurationParameters configurationParameters,
+			OutputDirectoryProvider outputDirectoryProvider) {
 		this.containsTests = containsTests;
 		this.configurationParameters = configurationParameters;
+		this.outputDirectoryProvider = outputDirectoryProvider;
 	}
 
 	/**
@@ -291,4 +297,68 @@ public class TestPlan {
 		return this.configurationParameters;
 	}
 
+	/**
+	 * Get the {@link OutputDirectoryProvider} for this test plan.
+	 *
+	 * @return the output directory provider; never {@code null}
+	 * @since 1.12
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public OutputDirectoryProvider getOutputDirectoryProvider() {
+		return this.outputDirectoryProvider;
+	}
+
+	/**
+	 * Accept the supplied {@link Visitor} for a depth-first traversal of the
+	 * test plan.
+	 *
+	 * @param visitor the visitor to accept; never {@code null}
+	 * @since 1.10
+	 */
+	@API(status = EXPERIMENTAL, since = "1.10")
+	public void accept(Visitor visitor) {
+		getRoots().forEach(it -> accept(visitor, it));
+	}
+
+	private void accept(Visitor visitor, TestIdentifier testIdentifier) {
+		if (testIdentifier.isContainer()) {
+			visitor.preVisitContainer(testIdentifier);
+		}
+		visitor.visit(testIdentifier);
+		getChildren(testIdentifier).forEach(it -> accept(visitor, it));
+		if (testIdentifier.isContainer()) {
+			visitor.postVisitContainer(testIdentifier);
+		}
+	}
+
+	/**
+	 * Visitor for {@link TestIdentifier TestIdentifiers} in a {@link TestPlan}.
+	 *
+	 * @since 1.10
+	 */
+	@API(status = EXPERIMENTAL, since = "1.10")
+	public interface Visitor {
+
+		/**
+		 * Called before visiting a container.
+		 *
+		 * @see TestIdentifier#isContainer()
+		 */
+		default void preVisitContainer(TestIdentifier testIdentifier) {
+		}
+
+		/**
+		 * Called for all test identifiers regardless of their type.
+		 */
+		default void visit(TestIdentifier testIdentifier) {
+		}
+
+		/**
+		 * Called after visiting a container.
+		 *
+		 * @see TestIdentifier#isContainer()
+		 */
+		default void postVisitContainer(TestIdentifier testIdentifier) {
+		}
+	}
 }

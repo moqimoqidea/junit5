@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,7 +10,6 @@
 
 package org.junit.jupiter.api;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.apiguardian.api.API.Status.STABLE;
 
@@ -60,22 +59,26 @@ import org.opentest4j.MultipleFailuresError;
  * <h2>Preemptive Timeouts</h2>
  *
  * <p>The various {@code assertTimeoutPreemptively()} methods in this class
- * execute the provided {@code executable} or {@code supplier} in a different
- * thread than that of the calling code. This behavior can lead to undesirable
- * side effects if the code that is executed within the {@code executable} or
- * {@code supplier} relies on {@link ThreadLocal} storage.
+ * execute the provided callback ({@code executable} or {@code supplier}) in a
+ * different thread than that of the calling code. If the timeout is exceeded,
+ * an attempt will be made to preemptively abort execution of the callback by
+ * {@linkplain Thread#interrupt() interrupting} the callback's thread. If the
+ * callback's thread does not return when interrupted, the thread will continue
+ * to run in the background after the {@code assertTimeoutPreemptively()} method
+ * has returned.
  *
- * <p>One common example of this is the transactional testing support in the Spring
- * Framework. Specifically, Spring's testing support binds transaction state to
- * the current thread (via a {@code ThreadLocal}) before a test method is invoked.
- * Consequently, if an {@code executable} or {@code supplier} provided to
- * {@code assertTimeoutPreemptively()} invokes Spring-managed components that
- * participate in transactions, any actions taken by those components will not be
- * rolled back with the test-managed transaction. On the contrary, such actions
- * will be committed to the persistent store (e.g., relational database) even
- * though the test-managed transaction is rolled back.
- *
- * <p>Similar side effects may be encountered with other frameworks that rely on
+ * <p>Furthermore, the behavior of {@code assertTimeoutPreemptively()} methods
+ * can lead to undesirable side effects if the code that is executed within the
+ * callback relies on {@link ThreadLocal} storage. One common example of this is
+ * the transactional testing support in the Spring Framework. Specifically, Spring's
+ * testing support binds transaction state to the current thread (via a
+ * {@code ThreadLocal}) before a test method is invoked. Consequently, if a
+ * callback provided to {@code assertTimeoutPreemptively()} invokes Spring-managed
+ * components that participate in transactions, any actions taken by those
+ * components will not be rolled back with the test-managed transaction. On the
+ * contrary, such actions will be committed to the persistent store (e.g.,
+ * relational database) even though the test-managed transaction is rolled back.
+ * Similar side effects may be encountered with other frameworks that rely on
  * {@code ThreadLocal} storage.
  *
  * <h2>Extensibility</h2>
@@ -2846,14 +2849,24 @@ public class Assertions {
 	// --- assertSame ----------------------------------------------------------
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} refer to the same object.
+	 * <em>Assert</em> that the {@code expected} object and the {@code actual} object
+	 * are the same object.
+	 * <p>This method should only be used to assert <em>identity</em> between objects.
+	 * To assert <em>equality</em> between two objects or two primitive values,
+	 * use one of the {@code assertEquals(...)} methods instead &mdash; for example,
+	 * use {@code assertEquals(999, 999)} instead of {@code assertSame(999, 999)}.
 	 */
 	public static void assertSame(Object expected, Object actual) {
 		AssertSame.assertSame(expected, actual);
 	}
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} refer to the same object.
+	 * <em>Assert</em> that the {@code expected} object and the {@code actual} object
+	 * are the same object.
+	 * <p>This method should only be used to assert <em>identity</em> between objects.
+	 * To assert <em>equality</em> between two objects or two primitive values,
+	 * use one of the {@code assertEquals(...)} methods instead &mdash; for example,
+	 * use {@code assertEquals(999, 999)} instead of {@code assertSame(999, 999)}.
 	 * <p>Fails with the supplied failure {@code message}.
 	 */
 	public static void assertSame(Object expected, Object actual, String message) {
@@ -2861,8 +2874,14 @@ public class Assertions {
 	}
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} refer to the same object.
-	 * <p>If necessary, the failure message will be retrieved lazily from the supplied {@code messageSupplier}.
+	 * <em>Assert</em> that the {@code expected} object and the {@code actual} object
+	 * are the same object.
+	 * <p>This method should only be used to assert <em>identity</em> between objects.
+	 * To assert <em>equality</em> between two objects or two primitive values,
+	 * use one of the {@code assertEquals(...)} methods instead &mdash; for example,
+	 * use {@code assertEquals(999, 999)} instead of {@code assertSame(999, 999)}.
+	 * <p>If necessary, the failure message will be retrieved lazily from the supplied
+	 * {@code messageSupplier}.
 	 */
 	public static void assertSame(Object expected, Object actual, Supplier<String> messageSupplier) {
 		AssertSame.assertSame(expected, actual, messageSupplier);
@@ -2871,14 +2890,22 @@ public class Assertions {
 	// --- assertNotSame -------------------------------------------------------
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} do not refer to the same object.
+	 * <em>Assert</em> that the {@code unexpected} object and the {@code actual}
+	 * object are not the same object.
+	 * <p>This method should only be used to compare the <em>identity</em> of two
+	 * objects. To assert that two objects or two primitive values are not
+	 * <em>equal</em>, use one of the {@code assertNotEquals(...)} methods instead.
 	 */
 	public static void assertNotSame(Object unexpected, Object actual) {
 		AssertNotSame.assertNotSame(unexpected, actual);
 	}
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} do not refer to the same object.
+	 * <em>Assert</em> that the {@code unexpected} object and the {@code actual}
+	 * object are not the same object.
+	 * <p>This method should only be used to compare the <em>identity</em> of two
+	 * objects. To assert that two objects or two primitive values are not
+	 * <em>equal</em>, use one of the {@code assertNotEquals(...)} methods instead.
 	 * <p>Fails with the supplied failure {@code message}.
 	 */
 	public static void assertNotSame(Object unexpected, Object actual, String message) {
@@ -2886,8 +2913,13 @@ public class Assertions {
 	}
 
 	/**
-	 * <em>Assert</em> that {@code expected} and {@code actual} do not refer to the same object.
-	 * <p>If necessary, the failure message will be retrieved lazily from the supplied {@code messageSupplier}.
+	 * <em>Assert</em> that the {@code unexpected} object and the {@code actual}
+	 * object are not the same object.
+	 * <p>This method should only be used to compare the <em>identity</em> of two
+	 * objects. To assert that two objects or two primitive values are not
+	 * <em>equal</em>, use one of the {@code assertNotEquals(...)} methods instead.
+	 * <p>If necessary, the failure message will be retrieved lazily from the supplied
+	 * {@code messageSupplier}.
 	 */
 	public static void assertNotSame(Object unexpected, Object actual, Supplier<String> messageSupplier) {
 		AssertNotSame.assertNotSame(unexpected, actual, messageSupplier);
@@ -3023,7 +3055,7 @@ public class Assertions {
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T extends Throwable> T assertThrowsExactly(Class<T> expectedType, Executable executable) {
 		return AssertThrowsExactly.assertThrowsExactly(expectedType, executable);
 	}
@@ -3038,11 +3070,15 @@ public class Assertions {
 	 * <p>If you do not want to perform additional checks on the exception instance,
 	 * ignore the return value.
 	 *
-	 * <p>Fails with the supplied failure {@code message}.
+	 * <p>Fails with the supplied failure {@code message}. Note that the supplied
+	 * {@code message} is <strong>not</strong> the expected message of the thrown
+	 * exception. To assert the expected message of the thrown exception, you must
+	 * use a separate, subsequent assertion against the exception returned from
+	 * this method.
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T extends Throwable> T assertThrowsExactly(Class<T> expectedType, Executable executable,
 			String message) {
 		return AssertThrowsExactly.assertThrowsExactly(expectedType, executable, message);
@@ -3056,14 +3092,18 @@ public class Assertions {
 	 * thrown, this method will fail.
 	 *
 	 * <p>If necessary, the failure message will be retrieved lazily from the
-	 * supplied {@code messageSupplier}.
+	 * supplied {@code messageSupplier}. Note that the failure message is
+	 * <strong>not</strong> the expected message of the thrown exception. To
+	 * assert the expected message of the thrown exception, you must use a
+	 * separate, subsequent assertion against the exception returned from this
+	 * method.
 	 *
 	 * <p>If you do not want to perform additional checks on the exception instance,
 	 * ignore the return value.
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T extends Throwable> T assertThrowsExactly(Class<T> expectedType, Executable executable,
 			Supplier<String> messageSupplier) {
 		return AssertThrowsExactly.assertThrowsExactly(expectedType, executable, messageSupplier);
@@ -3073,11 +3113,16 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable} throws
 	 * an exception of the {@code expectedType} and return the exception.
 	 *
-	 * <p>If no exception is thrown, or if an exception of a different type is
-	 * thrown, this method will fail.
+	 * <p>The assertion passes if the thrown exception type is the same as
+	 * {@code expectedType} or a subtype thereof. To check for the exact thrown
+	 * type use {@link #assertThrowsExactly(Class, Executable) assertThrowsExactly}.
+	 * If no exception is thrown, or if an exception of a different type is thrown,
+	 * this method will fail.
 	 *
 	 * <p>If you do not want to perform additional checks on the exception instance,
 	 * ignore the return value.
+	 *
+	 * @see #assertThrowsExactly(Class, Executable)
 	 */
 	public static <T extends Throwable> T assertThrows(Class<T> expectedType, Executable executable) {
 		return AssertThrows.assertThrows(expectedType, executable);
@@ -3087,13 +3132,22 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable} throws
 	 * an exception of the {@code expectedType} and return the exception.
 	 *
-	 * <p>If no exception is thrown, or if an exception of a different type is
-	 * thrown, this method will fail.
+	 * <p>The assertion passes if the thrown exception type is the same as
+	 * {@code expectedType} or a subtype thereof. To check for the exact thrown
+	 * type use {@link #assertThrowsExactly(Class, Executable, String) assertThrowsExactly}.
+	 * If no exception is thrown, or if an exception of a different type is thrown,
+	 * this method will fail.
 	 *
 	 * <p>If you do not want to perform additional checks on the exception instance,
 	 * ignore the return value.
 	 *
-	 * <p>Fails with the supplied failure {@code message}.
+	 * <p>Fails with the supplied failure {@code message}. Note that the supplied
+	 * {@code message} is <strong>not</strong> the expected message of the thrown
+	 * exception. To assert the expected message of the thrown exception, you must
+	 * use a separate, subsequent assertion against the exception returned from
+	 * this method.
+	 *
+	 * @see #assertThrowsExactly(Class, Executable, String)
 	 */
 	public static <T extends Throwable> T assertThrows(Class<T> expectedType, Executable executable, String message) {
 		return AssertThrows.assertThrows(expectedType, executable, message);
@@ -3103,14 +3157,23 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable} throws
 	 * an exception of the {@code expectedType} and return the exception.
 	 *
-	 * <p>If no exception is thrown, or if an exception of a different type is
-	 * thrown, this method will fail.
+	 * <p>The assertion passes if the thrown exception type is the same as
+	 * {@code expectedType} or a subtype thereof. To check for the exact thrown
+	 * type use {@link #assertThrowsExactly(Class, Executable, Supplier) assertThrowsExactly}.
+	 * If no exception is thrown, or if an exception of a different type is thrown,
+	 * this method will fail.
 	 *
 	 * <p>If necessary, the failure message will be retrieved lazily from the
-	 * supplied {@code messageSupplier}.
+	 * supplied {@code messageSupplier}. Note that the failure message is
+	 * <strong>not</strong> the expected message of the thrown exception. To
+	 * assert the expected message of the thrown exception, you must use a
+	 * separate, subsequent assertion against the exception returned from this
+	 * method.
 	 *
 	 * <p>If you do not want to perform additional checks on the exception instance,
 	 * ignore the return value.
+	 *
+	 * @see #assertThrowsExactly(Class, Executable, Supplier)
 	 */
 	public static <T extends Throwable> T assertThrows(Class<T> expectedType, Executable executable,
 			Supplier<String> messageSupplier) {
@@ -3382,11 +3445,8 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>Note: the {@code executable} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code executable} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
 	 * @see #assertTimeoutPreemptively(Duration, Executable, String)
 	 * @see #assertTimeoutPreemptively(Duration, Executable, Supplier)
@@ -3403,11 +3463,8 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>Note: the {@code executable} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code executable} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
 	 * <p>Fails with the supplied failure {@code message}.
 	 *
@@ -3426,11 +3483,8 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code executable}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>Note: the {@code executable} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code executable} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
 	 * <p>If necessary, the failure message will be retrieved lazily from the
 	 * supplied {@code messageSupplier}.
@@ -3453,13 +3507,10 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code supplier}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
-	 * <p>Note: the {@code supplier} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code supplier} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
 	 *
 	 * @see #assertTimeoutPreemptively(Duration, Executable)
 	 * @see #assertTimeoutPreemptively(Duration, Executable, String)
@@ -3476,13 +3527,10 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code supplier}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
-	 * <p>Note: the {@code supplier} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code supplier} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
 	 *
 	 * <p>Fails with the supplied failure {@code message}.
 	 *
@@ -3501,13 +3549,10 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code supplier}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
-	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
 	 *
-	 * <p>Note: the {@code supplier} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code supplier} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
+	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
 	 *
 	 * <p>If necessary, the failure message will be retrieved lazily from the
 	 * supplied {@code messageSupplier}.
@@ -3528,17 +3573,14 @@ public class Assertions {
 	 * <em>Assert</em> that execution of the supplied {@code supplier}
 	 * completes before the given {@code timeout} is exceeded.
 	 *
+	 * <p>See the {@linkplain Assertions Preemptive Timeouts} section of the
+	 * class-level Javadoc for further details.
+	 *
 	 * <p>If the assertion passes then the {@code supplier}'s result is returned.
 	 *
 	 * <p>In the case the assertion does not pass, the supplied
 	 * {@link TimeoutFailureFactory} is invoked to create an exception which is
 	 * then thrown.
-	 *
-	 * <p>Note: the {@code supplier} will be executed in a different thread than
-	 * that of the calling code. Furthermore, execution of the {@code supplier} will
-	 * be preemptively aborted if the timeout is exceeded. See the
-	 * {@linkplain Assertions Preemptive Timeouts} section of the class-level
-	 * Javadoc for a discussion of possible undesirable side effects.
 	 *
 	 * <p>If necessary, the failure message will be retrieved lazily from the
 	 * supplied {@code messageSupplier}.
@@ -3567,7 +3609,7 @@ public class Assertions {
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T> T assertInstanceOf(Class<T> expectedType, Object actualValue) {
 		return AssertInstanceOf.assertInstanceOf(expectedType, actualValue);
 	}
@@ -3583,7 +3625,7 @@ public class Assertions {
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T> T assertInstanceOf(Class<T> expectedType, Object actualValue, String message) {
 		return AssertInstanceOf.assertInstanceOf(expectedType, actualValue, message);
 	}
@@ -3600,7 +3642,7 @@ public class Assertions {
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	public static <T> T assertInstanceOf(Class<T> expectedType, Object actualValue, Supplier<String> messageSupplier) {
 		return AssertInstanceOf.assertInstanceOf(expectedType, actualValue, messageSupplier);
 	}
@@ -3620,6 +3662,6 @@ public class Assertions {
 		 *
 		 * @return timeout failure; never {@code null}
 		 */
-		T createTimeoutFailure(Duration timeout, Supplier<String> messageSupplier, Throwable cause);
+		T createTimeoutFailure(Duration timeout, Supplier<String> messageSupplier, Throwable cause, Thread testThread);
 	}
 }

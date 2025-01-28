@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,9 +10,11 @@
 
 package org.junit.platform.suite.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectUniqueId;
 import static org.junit.platform.launcher.TagFilter.excludeTags;
+import static org.junit.platform.launcher.core.OutputDirectoryProviders.hierarchicalOutputDirectoryProvider;
 import static org.junit.platform.suite.engine.SuiteEngineDescriptor.ENGINE_ID;
 import static org.junit.platform.testkit.engine.EventConditions.container;
 import static org.junit.platform.testkit.engine.EventConditions.displayName;
@@ -24,7 +26,10 @@ import static org.junit.platform.testkit.engine.EventConditions.test;
 import static org.junit.platform.testkit.engine.TestExecutionResultConditions.instanceOf;
 import static org.junit.platform.testkit.engine.TestExecutionResultConditions.message;
 
+import java.nio.file.Path;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.engine.descriptor.ClassTestDescriptor;
 import org.junit.jupiter.engine.descriptor.JupiterEngineDescriptor;
 import org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor;
@@ -34,12 +39,14 @@ import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.PostDiscoveryFilter;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
+import org.junit.platform.suite.engine.testcases.ConfigurationSensitiveTestCase;
 import org.junit.platform.suite.engine.testcases.DynamicTestsTestCase;
 import org.junit.platform.suite.engine.testcases.JUnit4TestsTestCase;
 import org.junit.platform.suite.engine.testcases.MultipleTestsTestCase;
 import org.junit.platform.suite.engine.testcases.SingleTestTestCase;
 import org.junit.platform.suite.engine.testcases.TaggedTestTestCase;
 import org.junit.platform.suite.engine.testsuites.AbstractSuite;
+import org.junit.platform.suite.engine.testsuites.ConfigurationSuite;
 import org.junit.platform.suite.engine.testsuites.CyclicSuite;
 import org.junit.platform.suite.engine.testsuites.DynamicSuite;
 import org.junit.platform.suite.engine.testsuites.EmptyCyclicSuite;
@@ -50,7 +57,9 @@ import org.junit.platform.suite.engine.testsuites.EmptyTestCaseWithFailIfNoTestF
 import org.junit.platform.suite.engine.testsuites.MultiEngineSuite;
 import org.junit.platform.suite.engine.testsuites.MultipleSuite;
 import org.junit.platform.suite.engine.testsuites.NestedSuite;
+import org.junit.platform.suite.engine.testsuites.SelectByIdentifierSuite;
 import org.junit.platform.suite.engine.testsuites.SelectClassesSuite;
+import org.junit.platform.suite.engine.testsuites.SelectMethodsSuite;
 import org.junit.platform.suite.engine.testsuites.SuiteDisplayNameSuite;
 import org.junit.platform.suite.engine.testsuites.SuiteSuite;
 import org.junit.platform.suite.engine.testsuites.ThreePartCyclicSuite;
@@ -61,16 +70,33 @@ import org.junit.platform.testkit.engine.EngineTestKit;
  */
 class SuiteEngineTests {
 
+	@TempDir
+	private Path outputDir;
+
 	@Test
 	void selectClasses() {
 		// @formatter:off
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectClass(SelectClassesSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.testEvents()
 				.assertThatEvents()
 				.haveExactly(1, event(test(SelectClassesSuite.class.getName()), finishedSuccessfully()))
 				.haveExactly(1, event(test(SingleTestTestCase.class.getName()), finishedSuccessfully()));
+		// @formatter:on
+	}
+
+	@Test
+	void selectMethods() {
+		// @formatter:off
+		EngineTestKit.engine(ENGINE_ID)
+				.selectors(selectClass(SelectMethodsSuite.class))
+				.execute()
+				.testEvents()
+				.assertThatEvents()
+				.haveExactly(1, event(test(MultipleTestsTestCase.class.getName(), "test()"), finishedSuccessfully()))
+				.doNotHave(event(test(MultipleTestsTestCase.class.getName(), "test2()")));
 		// @formatter:on
 	}
 
@@ -110,12 +136,6 @@ class SuiteEngineTests {
 		// @formatter:on
 	}
 
-	@Suite
-	@SelectClasses(SingleTestTestCase.class)
-	private static class PrivateSuite {
-
-	}
-
 	@Test
 	void innerSuiteIsNotExecuted() {
 		// @formatter:off
@@ -126,13 +146,6 @@ class SuiteEngineTests {
 				.assertThatEvents()
 				.isEmpty();
 		// @formatter:on
-	}
-
-	@SuppressWarnings("InnerClassMayBeStatic")
-	@Suite
-	@SelectClasses(SingleTestTestCase.class)
-	private class InnerSuite {
-
 	}
 
 	@Test
@@ -164,6 +177,7 @@ class SuiteEngineTests {
 		// @formatter:off
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectClass(SuiteSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.testEvents()
 				.assertThatEvents()
@@ -180,6 +194,7 @@ class SuiteEngineTests {
 				.append(SuiteTestDescriptor.SEGMENT_TYPE, SelectClassesSuite.class.getName());
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectUniqueId(uniqId))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.testEvents()
 				.assertThatEvents()
@@ -235,6 +250,7 @@ class SuiteEngineTests {
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectUniqueId(uniqueId))
 				.selectors(selectClass(SelectClassesSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.testEvents()
 				.assertThatEvents()
@@ -268,6 +284,34 @@ class SuiteEngineTests {
 				.assertThatEvents()
 				.haveExactly(2, event(test(MultipleSuite.class.getName()), finishedSuccessfully()))
 				.haveExactly(2, event(test(MultipleTestsTestCase.class.getName()), finishedSuccessfully()));
+		// @formatter:on
+	}
+
+	@Test
+	void selectConfigurationSensitiveMethodsInTestPlanByUniqueId() {
+		// @formatter:off
+		var uniqueId1 = UniqueId.forEngine(ENGINE_ID)
+				.append(SuiteTestDescriptor.SEGMENT_TYPE, ConfigurationSuite.class.getName())
+				.append("engine", JupiterEngineDescriptor.ENGINE_ID)
+				.append(ClassTestDescriptor.SEGMENT_TYPE, ConfigurationSensitiveTestCase.class.getName())
+				.append(TestMethodTestDescriptor.SEGMENT_TYPE, "test1()");
+
+		var uniqueId2 = UniqueId.forEngine(ENGINE_ID)
+				.append(SuiteTestDescriptor.SEGMENT_TYPE, ConfigurationSuite.class.getName())
+				.append("engine", JupiterEngineDescriptor.ENGINE_ID)
+				.append(ClassTestDescriptor.SEGMENT_TYPE, ConfigurationSensitiveTestCase.class.getName())
+				.append(TestMethodTestDescriptor.SEGMENT_TYPE, "test2()");
+
+		EngineTestKit.engine(ENGINE_ID)
+				.selectors(
+					selectUniqueId(uniqueId1),
+					selectUniqueId(uniqueId2)
+				)
+				.execute()
+				.testEvents()
+				.assertThatEvents()
+				.haveExactly(1, event(test(ConfigurationSuite.class.getName(), "test1()"), finishedSuccessfully()))
+				.haveExactly(1, event(test(ConfigurationSuite.class.getName(), "test2()"), finishedSuccessfully()));
 		// @formatter:on
 	}
 
@@ -359,6 +403,7 @@ class SuiteEngineTests {
 		// @formatter:off
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectClass(CyclicSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.allEvents()
 				.assertThatEvents()
@@ -385,11 +430,51 @@ class SuiteEngineTests {
 		// @formatter:off
 		EngineTestKit.engine(ENGINE_ID)
 				.selectors(selectClass(ThreePartCyclicSuite.PartA.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
 				.execute()
 				.allEvents()
 				.assertThatEvents()
 				.haveExactly(1, event(test(SingleTestTestCase.class.getName()), finishedSuccessfully()));
 		// @formatter:on
+	}
+
+	@Test
+	void selectByIdentifier() {
+		// @formatter:off
+		EngineTestKit.engine(ENGINE_ID)
+				.selectors(selectClass(SelectByIdentifierSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
+				.execute()
+				.testEvents()
+				.assertThatEvents()
+				.haveExactly(1, event(test(SelectByIdentifierSuite.class.getName()), finishedSuccessfully()))
+				.haveExactly(1, event(test(SingleTestTestCase.class.getName()), finishedSuccessfully()));
+		// @formatter:on
+	}
+
+	@Test
+	void passesOutputDirectoryProviderToEnginesInSuite() {
+		// @formatter:off
+		EngineTestKit.engine(ENGINE_ID)
+				.selectors(selectClass(SelectClassesSuite.class))
+				.outputDirectoryProvider(hierarchicalOutputDirectoryProvider(outputDir))
+				.execute()
+				.testEvents()
+				.assertThatEvents()
+				.haveExactly(1, event(test(SingleTestTestCase.class.getName()), finishedSuccessfully()));
+		// @formatter:on
+
+		assertThat(outputDir).isDirectoryRecursivelyContaining("glob:**/test.txt");
+	}
+
+	@Suite
+	@SelectClasses(SingleTestTestCase.class)
+	private static class PrivateSuite {
+	}
+
+	@Suite
+	@SelectClasses(names = "org.junit.platform.suite.engine.testcases.SingleTestTestCase")
+	private class InnerSuite {
 	}
 
 }

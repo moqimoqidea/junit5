@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.PreconditionViolationException;
-import org.junit.platform.console.options.CommandLineOptions;
+import org.junit.platform.console.options.TestDiscoveryOptions;
 import org.junit.platform.engine.Filter;
 import org.junit.platform.engine.discovery.ClassNameFilter;
 import org.junit.platform.engine.discovery.ClassSelector;
@@ -54,7 +54,7 @@ import org.junit.platform.launcher.LauncherDiscoveryRequest;
  */
 class DiscoveryRequestCreatorTests {
 
-	private final CommandLineOptions options = new CommandLineOptions();
+	private final TestDiscoveryOptions options = new TestDiscoveryOptions();
 
 	@Test
 	void convertsScanClasspathOptionWithoutExplicitRootDirectories() {
@@ -179,6 +179,18 @@ class DiscoveryRequestCreatorTests {
 	}
 
 	@Test
+	void convertsMethodNamePatternOptions() {
+		options.setScanClasspath(true);
+		options.setIncludedMethodNamePatterns(List.of(".+#foo.*Bar", ".+#toString", ".+#method.*"));
+		options.setExcludedMethodNamePatterns(List.of(".+#bar.*Foo"));
+		var request = convert();
+		var methodNameFilters = request.getPostDiscoveryFilters();
+		assertThat(methodNameFilters).hasSize(2);
+		assertThat(methodNameFilters.get(0).toString()).contains(".+#foo.*Bar", ".+#toString", ".+#method.*");
+		assertThat(methodNameFilters.get(1).toString()).contains(".+#bar.*Foo");
+	}
+
+	@Test
 	void convertsTagOptions() {
 		options.setScanClasspath(true);
 		options.setIncludedTagExpressions(List.of("fast", "medium", "slow"));
@@ -269,10 +281,10 @@ class DiscoveryRequestCreatorTests {
 		assertThat(methodSelectors).hasSize(2);
 		assertThat(methodSelectors.get(0).getClassName()).isEqualTo("com.acme.Foo");
 		assertThat(methodSelectors.get(0).getMethodName()).isEqualTo("m");
-		assertThat(methodSelectors.get(0).getMethodParameterTypes()).isEqualTo("");
+		assertThat(methodSelectors.get(0).getParameterTypeNames()).isEmpty();
 		assertThat(methodSelectors.get(1).getClassName()).isEqualTo("com.example.Bar");
 		assertThat(methodSelectors.get(1).getMethodName()).isEqualTo("method");
-		assertThat(methodSelectors.get(1).getMethodParameterTypes()).isEqualTo("java.lang.Object");
+		assertThat(methodSelectors.get(1).getParameterTypeNames()).isEqualTo("java.lang.Object");
 	}
 
 	@Test
@@ -304,6 +316,19 @@ class DiscoveryRequestCreatorTests {
 	}
 
 	@Test
+	void propagatesSelectorIdentifiers() {
+		var methodSelector = selectMethod("com.acme.Foo#m()");
+		var classSelector = selectClass("com.example.Bar");
+		options.setSelectorIdentifiers(
+			List.of(methodSelector.toIdentifier().orElseThrow(), classSelector.toIdentifier().orElseThrow()));
+
+		var request = convert();
+
+		assertThat(request.getSelectorsByType(MethodSelector.class)).containsExactly(methodSelector);
+		assertThat(request.getSelectorsByType(ClassSelector.class)).containsExactly(classSelector);
+	}
+
+	@Test
 	@SuppressWarnings("deprecation")
 	void convertsConfigurationParameters() {
 		options.setScanClasspath(true);
@@ -317,9 +342,24 @@ class DiscoveryRequestCreatorTests {
 		assertThat(configurationParameters.getBoolean("baz")).contains(true);
 	}
 
+	@Test
+	@SuppressWarnings("deprecation")
+	void convertsConfigurationParametersResources() {
+		options.setScanClasspath(true);
+		options.setConfigurationParameters(mapOf(entry("foo", "bar"), entry("com.example.prop.first", "baz")));
+		options.setConfigurationParametersResources(List.of("config-test.properties"));
+
+		var request = convert();
+		var configurationParameters = request.getConfigurationParameters();
+
+		assertThat(configurationParameters.size()).isEqualTo(2);
+		assertThat(configurationParameters.get("foo")).contains("bar");
+		assertThat(configurationParameters.get("com.example.prop.first")).contains("baz");
+		assertThat(configurationParameters.get("com.example.prop.second")).contains("second value");
+	}
+
 	private LauncherDiscoveryRequest convert() {
-		var creator = new DiscoveryRequestCreator();
-		return creator.toDiscoveryRequest(options);
+		return DiscoveryRequestCreator.toDiscoveryRequestBuilder(options).build();
 	}
 
 	private void assertIncludes(Filter<String> filter, String included) {

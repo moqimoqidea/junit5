@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -12,6 +12,7 @@ package org.junit.jupiter.api.io;
 
 import static org.apiguardian.api.API.Status.DEPRECATED;
 import static org.apiguardian.api.API.Status.EXPERIMENTAL;
+import static org.apiguardian.api.API.Status.STABLE;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,11 +40,24 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
  *
  * <p>The temporary directory is only created if a field in a test class or a
  * parameter in a lifecycle method or test method is annotated with
- * {@code @TempDir}. If the field type or parameter type is neither {@link Path}
- * nor {@link File}, if a field is declared as {@code final}, or if the temporary
- * directory cannot be created, an {@link ExtensionConfigurationException} or a
- * {@link ParameterResolutionException} will be thrown as appropriate. In
- * addition, a {@code ParameterResolutionException} will be thrown for a
+ * {@code @TempDir}.
+ * An {@link ExtensionConfigurationException} or a
+ * {@link ParameterResolutionException} will be thrown in one of the following
+ * cases:
+ *
+ * <ul>
+ * <li>If the field type or parameter type is neither {@link Path} nor
+       {@link File}.</li>
+ * <li>If a field is declared as {@code final}.</li>
+ * <li>If the temporary directory cannot be created.</li>
+ * <li>If the field type or parameter type is {@code File} and a custom
+ *     {@linkplain TempDir#factory() factory} is used, which creates a temporary
+ *     directory that does not belong to the
+ *     {@linkplain java.nio.file.FileSystems#getDefault() default file system}.
+ * </li>
+ * </ul>
+ *
+ * In addition, a {@code ParameterResolutionException} will be thrown for a
  * constructor parameter annotated with {@code @TempDir}.
  *
  * <h2>Scope</h2>
@@ -89,15 +103,53 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
  *
  * @since 5.4
  */
-@Target({ ElementType.FIELD, ElementType.PARAMETER })
+@Target({ ElementType.ANNOTATION_TYPE, ElementType.FIELD, ElementType.PARAMETER })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@API(status = EXPERIMENTAL, since = "5.4")
+@API(status = STABLE, since = "5.10")
 public @interface TempDir {
 
 	/**
+	 * Property name used to set the default temporary directory factory class name:
+	 * {@value}
+	 *
+	 * <h4>Supported Values</h4>
+	 *
+	 * <p>Supported values include fully qualified class names for types that
+	 * implement {@link TempDirFactory}.
+	 *
+	 * <p>If not specified, the default is {@link TempDirFactory.Standard}.
+	 *
+	 * @since 5.10
+	 */
+	@API(status = EXPERIMENTAL, since = "5.10")
+	String DEFAULT_FACTORY_PROPERTY_NAME = "junit.jupiter.tempdir.factory.default";
+
+	/**
+	 * Factory for the temporary directory.
+	 *
+	 * <p>If the {@value #SCOPE_PROPERTY_NAME} configuration parameter is set to
+	 * {@code per_context}, no custom factory is allowed.
+	 *
+	 * <p>Defaults to {@link TempDirFactory.Standard}.
+	 *
+	 * <p>As an alternative to setting this attribute, a global
+	 * {@link TempDirFactory} can be configured for the entire test suite via
+	 * the {@value #DEFAULT_FACTORY_PROPERTY_NAME} configuration parameter.
+	 * See the User Guide for details. Note, however, that a {@code @TempDir}
+	 * declaration with a custom {@code factory} always overrides a global
+	 * {@code TempDirFactory}.
+	 *
+	 * @return the type of {@code TempDirFactory} to use
+	 * @since 5.10
+	 * @see TempDirFactory
+	 */
+	@API(status = EXPERIMENTAL, since = "5.10")
+	Class<? extends TempDirFactory> factory() default TempDirFactory.class;
+
+	/**
 	 * Property name used to set the scope of temporary directories created via
-	 * {@link org.junit.jupiter.api.io.TempDir @TempDir} annotation: {@value}
+	 * the {@link TempDir @TempDir} annotation: {@value}
 	 *
 	 * <h4>Supported Values</h4>
 	 * <ul>
@@ -133,7 +185,7 @@ public @interface TempDir {
 	 *
 	 * @since 5.9
 	 */
-	@API(status = EXPERIMENTAL, since = "5.9")
+	@API(status = STABLE, since = "5.11")
 	CleanupMode cleanup() default CleanupMode.DEFAULT;
 
 }

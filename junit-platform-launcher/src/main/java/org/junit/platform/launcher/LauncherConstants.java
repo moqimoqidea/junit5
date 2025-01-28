@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -65,7 +65,7 @@ public class LauncherConstants {
 	 * to use per thread and output type if output capturing is enabled:
 	 * {@value}
 	 *
-	 * <p>Value must be an integer; defaults to {@value CAPTURE_MAX_BUFFER_DEFAULT}.
+	 * <p>Value must be an integer; defaults to {@value #CAPTURE_MAX_BUFFER_DEFAULT}.
 	 *
 	 * @see #CAPTURE_MAX_BUFFER_DEFAULT
 	 */
@@ -92,8 +92,9 @@ public class LauncherConstants {
 	public static final String STDERR_REPORT_ENTRY_KEY = "stderr";
 
 	/**
-	 * Property name used to provide patterns for deactivating listeners registered
-	 * via the {@link java.util.ServiceLoader ServiceLoader} mechanism: {@value}
+	 * Property name used to provide patterns for deactivating
+	 * {@linkplain TestExecutionListener listeners} registered via the
+	 * {@link java.util.ServiceLoader ServiceLoader} mechanism: {@value}
 	 *
 	 * <h4>Pattern Matching Syntax</h4>
 	 *
@@ -121,6 +122,17 @@ public class LauncherConstants {
 	 * {@code org.example.TheirListener}.
 	 * </ul>
 	 *
+	 * <p>Only listeners registered via the {@code ServiceLoader} mechanism can
+	 * be deactivated. In other words, any listener registered explicitly via the
+	 * {@link LauncherDiscoveryRequest} cannot be deactivated via this
+	 * configuration parameter.
+	 *
+	 * <p>In addition, since execution listeners are registered before the test
+	 * run starts, this configuration parameter can only be supplied as a JVM
+	 * system property or via the JUnit Platform configuration file but cannot
+	 * be supplied in the {@link LauncherDiscoveryRequest}} that is passed to
+	 * the {@link Launcher}.
+	 *
 	 * @see #DEACTIVATE_ALL_LISTENERS_PATTERN
 	 * @see org.junit.platform.launcher.TestExecutionListener
 	 */
@@ -134,7 +146,7 @@ public class LauncherConstants {
 	 * @see #DEACTIVATE_LISTENERS_PATTERN_PROPERTY_NAME
 	 * @see org.junit.platform.launcher.TestExecutionListener
 	 */
-	public static final String DEACTIVATE_ALL_LISTENERS_PATTERN = ClassNamePatternFilterUtils.DEACTIVATE_ALL_PATTERN;
+	public static final String DEACTIVATE_ALL_LISTENERS_PATTERN = ClassNamePatternFilterUtils.ALL_PATTERN;
 
 	/**
 	 * Property name used to enable support for
@@ -143,10 +155,69 @@ public class LauncherConstants {
 	 *
 	 * <p>By default, interceptor registration is disabled.
 	 *
+	 * <p>Since interceptors are registered before the test run starts, this
+	 * configuration parameter can only be supplied as a JVM system property or
+	 * via the JUnit Platform configuration file but cannot be supplied in the
+	 * {@link LauncherDiscoveryRequest}} that is passed to the {@link Launcher}.
+	 *
 	 * @see LauncherInterceptor
 	 */
 	@API(status = EXPERIMENTAL, since = "1.10")
 	public static final String ENABLE_LAUNCHER_INTERCEPTORS = "junit.platform.launcher.interceptors.enabled";
+
+	/**
+	 * Property name used to enable dry-run mode for test execution.
+	 *
+	 * <p>When dry-run mode is enabled, no tests will be executed. Instead, all
+	 * registered {@link TestExecutionListener TestExecutionListeners} will
+	 * receive events for all test descriptors that are part of the discovered
+	 * {@link TestPlan}. All containers will be reported as successful and all
+	 * tests as skipped. This can be useful to test changes in the configuration
+	 * of a build or to verify a listener is called as expected without having
+	 * to wait for all tests to be executed.
+	 *
+	 * <p>Value must be either {@code true} or {@code false}; defaults to {@code false}.
+	 */
+	@API(status = EXPERIMENTAL, since = "1.10")
+	public static final String DRY_RUN_PROPERTY_NAME = "junit.platform.execution.dryRun.enabled";
+
+	/**
+	 * Property name used to enable or disable stack trace pruning.
+	 *
+	 * <p>By default, stack trace pruning is enabled.
+	 *
+	 * @see org.junit.platform.launcher.core.EngineExecutionOrchestrator
+	 */
+	@API(status = EXPERIMENTAL, since = "1.10")
+	public static final String STACKTRACE_PRUNING_ENABLED_PROPERTY_NAME = "junit.platform.stacktrace.pruning.enabled";
+
+	/**
+	 * Property name used to configure the output directory for reporting.
+	 *
+	 * <p>If set, value must be a valid path that will be created if it doesn't
+	 * exist. If not set, the default output directory will be determined by the
+	 * reporting engine based on the current working directory.
+	 *
+	 * @since 1.12
+	 * @see #OUTPUT_DIR_UNIQUE_NUMBER_PLACEHOLDER
+	 * @see org.junit.platform.engine.reporting.OutputDirectoryProvider
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static final String OUTPUT_DIR_PROPERTY_NAME = "junit.platform.reporting.output.dir";
+
+	/**
+	 * Placeholder for use in {@link #OUTPUT_DIR_PROPERTY_NAME} that will be
+	 * replaced with a unique number.
+	 *
+	 * <p>This can be used to create a unique output directory for each test
+	 * run. For example, if multiple forks are used, each fork can be configured
+	 * to write its output to a separate directory.
+	 *
+	 * @since 1.12
+	 * @see #OUTPUT_DIR_PROPERTY_NAME
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static final String OUTPUT_DIR_UNIQUE_NUMBER_PLACEHOLDER = "{uniqueNumber}";
 
 	private LauncherConstants() {
 		/* no-op */

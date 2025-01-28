@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,6 +14,7 @@ import static java.util.function.Predicate.isEqual;
 import static java.util.stream.Collectors.toList;
 import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.MAINTAINED;
+import static org.apiguardian.api.API.Status.STABLE;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.junit.platform.commons.util.FunctionUtils.where;
 import static org.junit.platform.engine.TestExecutionResult.Status.ABORTED;
@@ -42,6 +43,7 @@ import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestExecutionResult.Status;
 import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.EngineDescriptor;
 
@@ -141,7 +143,7 @@ public final class EventConditions {
 	 * {@link Event}'s {@linkplain Event#getTestDescriptor() test descriptor} is
 	 * a {@linkplain TestDescriptor#isContainer() container} and its
 	 * {@linkplain TestDescriptor#getUniqueId() unique id} contains the
-	 * fully-qualified name of the supplied {@link Class}.
+	 * fully qualified name of the supplied {@link Class}.
 	 */
 	public static Condition<Event> container(Class<?> clazz) {
 		Preconditions.notNull(clazz, "Class must not be null");
@@ -464,10 +466,23 @@ public final class EventConditions {
 	 * {@link Event}'s {@linkplain Event#getPayload() payload} is an instance of
 	 * {@link ReportEntry} that contains the supplied key-value pairs.
 	 */
-	@API(status = EXPERIMENTAL, since = "1.7")
+	@API(status = STABLE, since = "1.10")
 	public static Condition<Event> reportEntry(Map<String, String> keyValuePairs) {
 		return new Condition<>(byPayload(ReportEntry.class, it -> it.getKeyValuePairs().equals(keyValuePairs)),
 			"event for report entry with key-value pairs %s", keyValuePairs);
+	}
+
+	/**
+	 * Create a new {@link Condition} that matches if and only if an
+	 * {@link Event}'s {@linkplain Event#getPayload() payload} is an instance of
+	 * {@link FileEntry} that contains a file that matches the supplied
+	 * {@link Predicate}.
+	 *
+	 * @since 1.12
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static Condition<Event> fileEntry(Predicate<FileEntry> predicate) {
+		return new Condition<>(byPayload(FileEntry.class, predicate), "event for file entry with custom predicate");
 	}
 
 }

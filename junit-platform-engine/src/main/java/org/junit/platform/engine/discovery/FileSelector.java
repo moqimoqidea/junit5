@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,6 +10,7 @@
 
 package org.junit.platform.engine.discovery;
 
+import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.apiguardian.api.API.Status.STABLE;
 
 import java.io.File;
@@ -21,8 +22,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.apiguardian.api.API;
+import org.junit.platform.commons.util.StringUtils;
 import org.junit.platform.commons.util.ToStringBuilder;
 import org.junit.platform.engine.DiscoverySelector;
+import org.junit.platform.engine.DiscoverySelectorIdentifier;
 
 /**
  * A {@link DiscoverySelector} that selects a file so that
@@ -109,12 +112,53 @@ public class FileSelector implements DiscoverySelector {
 	@API(status = STABLE, since = "1.3")
 	@Override
 	public int hashCode() {
-		return Objects.hash(path, position);
+		return Objects.hash(this.path, this.position);
 	}
 
 	@Override
 	public String toString() {
 		return new ToStringBuilder(this).append("path", this.path).append("position", this.position).toString();
+	}
+
+	@Override
+	public Optional<DiscoverySelectorIdentifier> toIdentifier() {
+		if (this.position == null) {
+			return Optional.of(DiscoverySelectorIdentifier.create(IdentifierParser.PREFIX, this.path));
+		}
+		else {
+			return Optional.of(DiscoverySelectorIdentifier.create(IdentifierParser.PREFIX,
+				String.format("%s?%s", this.path, this.position.toQueryPart())));
+		}
+	}
+
+	/**
+	 * The {@link DiscoverySelectorIdentifierParser} for {@link FileSelector
+	 * FileSelectors}.
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static class IdentifierParser implements DiscoverySelectorIdentifierParser {
+
+		private static final String PREFIX = "file";
+
+		public IdentifierParser() {
+		}
+
+		@Override
+		public String getPrefix() {
+			return PREFIX;
+		}
+
+		@Override
+		public Optional<FileSelector> parse(DiscoverySelectorIdentifier identifier, Context context) {
+			return Optional.of(StringUtils.splitIntoTwo('?', identifier.getValue()).map( //
+				DiscoverySelectors::selectFile, //
+				(path, query) -> {
+					FilePosition position = FilePosition.fromQuery(query).orElse(null);
+					return DiscoverySelectors.selectFile(path, position);
+				} //
+			));
+		}
+
 	}
 
 }

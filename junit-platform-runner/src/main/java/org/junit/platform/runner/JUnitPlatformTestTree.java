@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import org.junit.platform.commons.util.AnnotationUtils;
+import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.util.StringUtils;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.UniqueId;
@@ -76,7 +76,7 @@ class JUnitPlatformTestTree {
 
 	private String getSuiteDisplayName(Class<?> testClass) {
 		// @formatter:off
-		return AnnotationUtils.findAnnotation(testClass, SuiteDisplayName.class)
+		return AnnotationSupport.findAnnotation(testClass, SuiteDisplayName.class)
 				.map(SuiteDisplayName::value)
 				.filter(StringUtils::isNotBlank)
 				.orElse(testClass.getName());

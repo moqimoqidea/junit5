@@ -1,8 +1,8 @@
 plugins {
-	id("io.spring.nohttp")
-	id("io.github.gradle-nexus.publish-plugin")
+	alias(libs.plugins.nexusPublish)
 	id("junitbuild.base-conventions")
 	id("junitbuild.build-metadata")
+	id("junitbuild.checkstyle-nohttp")
 	id("junitbuild.dependency-update-check")
 	id("junitbuild.jacoco-aggregation-conventions")
 	id("junitbuild.temp-maven-repo")
@@ -30,7 +30,7 @@ val platformProjects by extra(listOf(
 		projects.junitPlatformSuiteCommons,
 		projects.junitPlatformSuiteEngine,
 		projects.junitPlatformTestkit
-).map { it.dependencyProject })
+).map { dependencyProject(it) })
 
 val jupiterProjects by extra(listOf(
 		projects.junitJupiter,
@@ -38,28 +38,27 @@ val jupiterProjects by extra(listOf(
 		projects.junitJupiterEngine,
 		projects.junitJupiterMigrationsupport,
 		projects.junitJupiterParams
-).map { it.dependencyProject })
+).map { dependencyProject(it) })
 
 val vintageProjects by extra(listOf(
-		projects.junitVintageEngine.dependencyProject
+	dependencyProject(projects.junitVintageEngine)
 ))
 
 val mavenizedProjects by extra(platformProjects + jupiterProjects + vintageProjects)
-val modularProjects by extra(mavenizedProjects - listOf(projects.junitPlatformConsoleStandalone.dependencyProject))
+val modularProjects by extra(mavenizedProjects - setOf(dependencyProject(projects.junitPlatformConsoleStandalone)))
 
 dependencies {
-	(modularProjects + listOf(projects.platformTests.dependencyProject)).forEach {
-		jacocoAggregation(project(it.path))
+	modularProjects.forEach {
+		jacocoAggregation(it)
 	}
+	jacocoAggregation(projects.documentation)
+	jacocoAggregation(projects.jupiterTests)
+	jacocoAggregation(projects.platformTests)
 }
 
 nexusPublishing {
-	packageGroup.set("org.junit")
+	packageGroup = "org.junit"
 	repositories {
 		sonatype()
 	}
-}
-
-nohttp {
-	source.exclude("**/.gradle/**", "gradle/plugins/build/**")
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -43,12 +43,14 @@ public class RunnerTestDescriptor extends VintageTestDescriptor {
 
 	private final Set<Description> rejectedExclusions = new HashSet<>();
 	private Runner runner;
+	private final boolean ignored;
 	private boolean wasFiltered;
 	private List<Filter> filters = new ArrayList<>();
 
-	public RunnerTestDescriptor(UniqueId uniqueId, Class<?> testClass, Runner runner) {
+	public RunnerTestDescriptor(UniqueId uniqueId, Class<?> testClass, Runner runner, boolean ignored) {
 		super(uniqueId, runner.getDescription(), testClass.getSimpleName(), ClassSource.from(testClass));
 		this.runner = runner;
+		this.ignored = ignored;
 	}
 
 	@Override
@@ -153,6 +155,10 @@ public class RunnerTestDescriptor extends VintageTestDescriptor {
 
 	private Runner getRunnerToReport() {
 		return (runner instanceof RunnerDecorator) ? ((RunnerDecorator) runner).getDecoratedRunner() : runner;
+	}
+
+	public boolean isIgnored() {
+		return ignored;
 	}
 
 	private static class ExcludeDescriptionFilter extends Filter {

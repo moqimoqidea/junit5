@@ -1,6 +1,7 @@
 plugins {
 	id("junitbuild.java-library-conventions")
 	id("junitbuild.junit4-compatibility")
+	id("junitbuild.native-image-properties")
 	id("junitbuild.testing-conventions")
 	`java-test-fixtures`
 	groovy
@@ -23,20 +24,24 @@ dependencies {
 	testImplementation(projects.junitPlatformSuiteEngine)
 	testImplementation(projects.junitPlatformTestkit)
 	testImplementation(testFixtures(projects.junitJupiterApi))
+	testImplementation(testFixtures(projects.junitPlatformLauncher))
+	testImplementation(testFixtures(projects.junitPlatformReporting))
 
 	osgiVerification(projects.junitPlatformLauncher)
 }
 
 tasks {
 	compileTestFixturesGroovy {
-		javaLauncher.set(project.javaToolchains.launcherFor {
+		javaLauncher = project.javaToolchains.launcherFor {
 			// Groovy 2.x (used for Spock tests) does not support current JDKs
-			languageVersion.set(JavaLanguageVersion.of(8))
-		})
+			languageVersion = JavaLanguageVersion.of(8)
+		}
 	}
 	jar {
 		bundle {
 			val junit4Min = libs.versions.junit4Min.get()
+			val platformVersion: String by rootProject.extra
+			val version = project.version
 			bnd("""
 				# Import JUnit4 packages with a version
 				Import-Package: \
@@ -53,24 +58,26 @@ tasks {
 				Provide-Capability:\
 					org.junit.platform.engine;\
 						org.junit.platform.engine='junit-vintage';\
-						version:Version="${'$'}{version_cleanup;${project.version}}"
+						version:Version="${'$'}{version_cleanup;$version}"
 				Require-Capability:\
 					org.junit.platform.launcher;\
-						filter:='(&(org.junit.platform.launcher=junit-platform-launcher)(version>=${'$'}{version_cleanup;${rootProject.property("platformVersion")!!}})(!(version>=${'$'}{versionmask;+;${'$'}{version_cleanup;${rootProject.property("platformVersion")!!}}})))';\
+						filter:='(&(org.junit.platform.launcher=junit-platform-launcher)(version>=${'$'}{version_cleanup;$platformVersion})(!(version>=${'$'}{versionmask;+;${'$'}{version_cleanup;$platformVersion}})))';\
 						effective:=active
 			""")
 		}
 	}
 	val testWithoutJUnit4 by registering(Test::class) {
+		val test by testing.suites.existing(JvmTestSuite::class)
 		(options as JUnitPlatformOptions).apply {
 			includeTags("missing-junit4")
 		}
 		setIncludes(listOf("**/JUnit4VersionCheckTests.class"))
-		classpath = classpath.filter {
+		testClassesDirs = files(test.map { it.sources.output.classesDirs })
+		classpath = files(test.map { it.sources.runtimeClasspath }).filter {
 			!it.name.startsWith("junit-4")
 		}
 	}
-	withType<Test>().matching { it.name != testWithoutJUnit4.name }.configureEach {
+	withType<Test>().named { it != testWithoutJUnit4.name }.configureEach {
 		(options as JUnitPlatformOptions).apply {
 			excludeTags("missing-junit4")
 		}
@@ -82,5 +89,12 @@ tasks {
 	}
 	check {
 		dependsOn(testWithoutJUnit4)
+	}
+}
+
+eclipse {
+	classpath {
+		// Avoid exposing test resources to dependent projects
+		containsTestFixtures = false
 	}
 }
