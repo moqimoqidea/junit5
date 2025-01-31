@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,11 +10,11 @@
 
 package org.junit.jupiter.params.provider;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.STABLE;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -22,9 +22,9 @@ import java.lang.annotation.Target;
 import org.apiguardian.api.API;
 
 /**
- * {@code @CsvFileSource} is an {@link ArgumentsSource} which is used to load
- * comma-separated value (CSV) files from one or more classpath {@link #resources}
- * or {@link #files}.
+ * {@code @CsvFileSource} is a {@linkplain Repeatable repeatable}
+ * {@link ArgumentsSource} which is used to load comma-separated value (CSV)
+ * files from one or more classpath {@link #resources} or {@link #files}.
  *
  * <p>The CSV records parsed from these resources and files will be provided as
  * arguments to the annotated {@code @ParameterizedTest} method. Note that the
@@ -64,6 +64,7 @@ import org.apiguardian.api.API;
 @Target({ ElementType.ANNOTATION_TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Repeatable(CsvFileSources.class)
 @API(status = STABLE, since = "5.7")
 @ArgumentsSource(CsvFileArgumentsProvider.class)
 @SuppressWarnings("exports")
@@ -123,7 +124,7 @@ public @interface CsvFileSource {
 	 *
 	 * @since 5.8.2
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8.2")
+	@API(status = STABLE, since = "5.10")
 	boolean useHeadersInDisplayName() default false;
 
 	/**
@@ -136,7 +137,7 @@ public @interface CsvFileSource {
 	 *
 	 * @since 5.8.2
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8.2")
+	@API(status = STABLE, since = "5.10")
 	char quoteCharacter() default '"';
 
 	/**
@@ -205,13 +206,14 @@ public @interface CsvFileSource {
 	/**
 	 * The maximum number of characters allowed per CSV column.
 	 *
-	 * <p>Must be a positive number.
+	 * <p>Must be a positive number or {@code -1} to allow an unlimited number
+	 * of characters.
 	 *
 	 * <p>Defaults to {@code 4096}.
 	 *
 	 * @since 5.7
 	 */
-	@API(status = EXPERIMENTAL, since = "5.7")
+	@API(status = STABLE, since = "5.10")
 	int maxCharsPerColumn() default 4096;
 
 	/**
@@ -222,7 +224,7 @@ public @interface CsvFileSource {
 	 *
 	 * @since 5.8
 	 */
-	@API(status = EXPERIMENTAL, since = "5.8")
+	@API(status = STABLE, since = "5.10")
 	boolean ignoreLeadingAndTrailingWhitespace() default true;
 
 }

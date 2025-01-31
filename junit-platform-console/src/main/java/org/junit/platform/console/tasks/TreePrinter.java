@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -21,6 +21,7 @@ import org.junit.platform.commons.util.StringUtils;
 import org.junit.platform.console.options.Theme;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestExecutionResult.Status;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 
 /**
@@ -79,12 +80,16 @@ class TreePrinter {
 			out.print(" ");
 			out.print(duration);
 		}
-		out.print(" ");
-		out.print(icon);
+		boolean nodeIsBeingListed = node.duration == 0 && !node.result().isPresent() && !node.reason().isPresent();
+		if (!nodeIsBeingListed) {
+			out.print(" ");
+			out.print(icon);
+		}
 		node.result().ifPresent(result -> printThrowable(tabbed, result));
 		node.reason().ifPresent(reason -> printMessage(Style.SKIPPED, tabbed, reason));
 		node.reports.forEach(e -> printReportEntry(tabbed, e));
 		out.println();
+		node.files.forEach(e -> printFileEntry(tabbed, e));
 	}
 
 	private String tab(TreeNode node, boolean continuous) {
@@ -147,6 +152,14 @@ class TreePrinter {
 		out.print(" = `");
 		out.print(color(Style.SUCCESSFUL, mapEntry.getValue()));
 		out.print("`");
+	}
+
+	private void printFileEntry(String indent, FileEntry fileEntry) {
+		out.print(indent);
+		out.print(fileEntry.getTimestamp());
+		out.print(" ");
+		out.print(color(Style.SUCCESSFUL, fileEntry.getPath().toUri().toString()));
+		out.println();
 	}
 
 	private void printMessage(Style style, String indent, String message) {

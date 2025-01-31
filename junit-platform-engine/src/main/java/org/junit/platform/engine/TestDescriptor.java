@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -105,6 +105,29 @@ public interface TestDescriptor {
 	 * @see #getDescendants()
 	 */
 	Set<? extends TestDescriptor> getChildren();
+
+	/**
+	 * Get the immutable set of all <em>ancestors</em> of this descriptor.
+	 *
+	 * <p>An <em>ancestor</em> is the parent of this descriptor or the parent of
+	 * one of its parents, recursively.
+	 *
+	 * @see #getParent()
+	 */
+	@API(status = STABLE, since = "1.10")
+	default Set<? extends TestDescriptor> getAncestors() {
+		if (!getParent().isPresent()) {
+			return Collections.emptySet();
+		}
+		TestDescriptor parent = getParent().get();
+		Set<TestDescriptor> ancestors = new LinkedHashSet<>();
+		ancestors.add(parent);
+		// Need to recurse?
+		if (parent.getParent().isPresent()) {
+			ancestors.addAll(parent.getAncestors());
+		}
+		return Collections.unmodifiableSet(ancestors);
+	}
 
 	/**
 	 * Get the immutable set of all <em>descendants</em> of this descriptor.

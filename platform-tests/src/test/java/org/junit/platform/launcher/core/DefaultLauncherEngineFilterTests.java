@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -148,8 +148,7 @@ class DefaultLauncherEngineFilterTests {
 	}
 
 	@Test
-	@TrackLogRecords
-	void launcherThrowsExceptionWhenNoEngineMatchesIncludeEngineFilter(LogRecordListener log) {
+	void launcherThrowsExceptionWhenNoEngineMatchesIncludeEngineFilter(@TrackLogRecords LogRecordListener log) {
 		var engine = new DemoHierarchicalTestEngine("first");
 		TestDescriptor test1 = engine.addTest("test1", noOp);
 		LauncherDiscoveryRequest request = request() //
@@ -169,8 +168,7 @@ class DefaultLauncherEngineFilterTests {
 	}
 
 	@Test
-	@TrackLogRecords
-	void launcherWillLogWarningWhenAllEnginesWereExcluded(LogRecordListener log) {
+	void launcherWillLogWarningWhenAllEnginesWereExcluded(@TrackLogRecords LogRecordListener log) {
 		var engine = new DemoHierarchicalTestEngine("first");
 		TestDescriptor test = engine.addTest("test1", noOp);
 

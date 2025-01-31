@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -48,6 +48,13 @@ import org.junit.platform.commons.annotation.Testable;
  * <p>{@code @TestTemplate} may also be used as a meta-annotation in order to
  * create a custom <em>composed annotation</em> that inherits the semantics
  * of {@code @TestTemplate}.
+ *
+ * <h2>Inheritance</h2>
+ *
+ * <p>{@code @TestTemplate} methods are inherited from superclasses as long as
+ * they are not <em>overridden</em> according to the visibility rules of the Java
+ * language. Similarly, {@code @TestTemplate} methods declared as <em>interface
+ * default methods</em> are inherited as long as they are not overridden.
  *
  * <h2>Test Execution Order</h2>
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -19,8 +19,8 @@ import org.junit.jupiter.api.TestClassOrder;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor;
 import org.junit.jupiter.engine.descriptor.JupiterEngineDescriptor;
-import org.junit.platform.commons.util.AnnotationUtils;
-import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.commons.support.AnnotationSupport;
+import org.junit.platform.commons.support.ReflectionSupport;
 import org.junit.platform.engine.TestDescriptor;
 
 /**
@@ -57,9 +57,9 @@ class ClassOrderingVisitor
 			AbstractAnnotatedDescriptorWrapper<?> descriptorWrapper) {
 
 		AnnotatedElement annotatedElement = descriptorWrapper.getAnnotatedElement();
-		return AnnotationUtils.findAnnotation(annotatedElement, TestClassOrder.class)//
+		return AnnotationSupport.findAnnotation(annotatedElement, TestClassOrder.class)//
 				.map(TestClassOrder::value)//
-				.<ClassOrderer> map(ReflectionUtils::newInstance)//
+				.<ClassOrderer> map(ReflectionSupport::newInstance)//
 				.map(this::createDescriptorWrapperOrderer)//
 				.orElse(inheritedDescriptorWrapperOrderer);
 	}

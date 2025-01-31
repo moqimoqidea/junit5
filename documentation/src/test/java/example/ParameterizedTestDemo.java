@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Named.named;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.MATCH_ALL;
@@ -29,8 +31,10 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -46,6 +50,8 @@ import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestReporter;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ArgumentCountValidationMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.aggregator.AggregateWith;
 import org.junit.jupiter.params.aggregator.ArgumentsAccessor;
@@ -61,12 +67,19 @@ import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@Execution(SAME_THREAD)
 class ParameterizedTestDemo {
+
+	@BeforeEach
+	void printDisplayName(TestInfo testInfo) {
+		System.out.println(testInfo.getDisplayName());
+	}
 
 	// tag::first_example[]
 	@ParameterizedTest
@@ -135,6 +148,14 @@ class ParameterizedTestDemo {
 	}
 	// end::EnumSource_include_example[]
 
+	// tag::EnumSource_range_example[]
+	@ParameterizedTest
+	@EnumSource(from = "HOURS", to = "DAYS")
+	void testWithEnumSourceRange(ChronoUnit unit) {
+		assertTrue(EnumSet.of(ChronoUnit.HOURS, ChronoUnit.HALF_DAYS, ChronoUnit.DAYS).contains(unit));
+	}
+	// end::EnumSource_range_example[]
+
 	// tag::EnumSource_exclude_example[]
 	@ParameterizedTest
 	@EnumSource(mode = EXCLUDE, names = { "ERAS", "FOREVER" })
@@ -150,6 +171,15 @@ class ParameterizedTestDemo {
 		assertTrue(unit.name().endsWith("DAYS"));
 	}
 	// end::EnumSource_regex_example[]
+
+	// tag::EnumSource_range_exclude_example[]
+	@ParameterizedTest
+	@EnumSource(from = "HOURS", to = "DAYS", mode = EXCLUDE, names = { "HALF_DAYS" })
+	void testWithEnumSourceRangeExclude(ChronoUnit unit) {
+		assertTrue(EnumSet.of(ChronoUnit.HOURS, ChronoUnit.DAYS).contains(unit));
+		assertFalse(EnumSet.of(ChronoUnit.HALF_DAYS).contains(unit));
+	}
+	// end::EnumSource_range_exclude_example[]
 
 	// tag::simple_MethodSource_example[]
 	@ParameterizedTest
@@ -204,6 +234,78 @@ class ParameterizedTestDemo {
 		);
 	}
 	// end::multi_arg_MethodSource_example[]
+	// @formatter:on
+
+	// @formatter:off
+	// tag::default_field_FieldSource_example[]
+	@ParameterizedTest
+	@FieldSource
+	void arrayOfFruits(String fruit) {
+		assertFruit(fruit);
+	}
+
+	static final String[] arrayOfFruits = { "apple", "banana" };
+	// end::default_field_FieldSource_example[]
+	// @formatter:on
+
+	// @formatter:off
+	// tag::explicit_field_FieldSource_example[]
+	@ParameterizedTest
+	@FieldSource("listOfFruits")
+	void singleFieldSource(String fruit) {
+		assertFruit(fruit);
+	}
+
+	static final List<String> listOfFruits = Arrays.asList("apple", "banana");
+	// end::explicit_field_FieldSource_example[]
+	// @formatter:on
+
+	// @formatter:off
+	// tag::multiple_fields_FieldSource_example[]
+	@ParameterizedTest
+	@FieldSource({ "listOfFruits", "additionalFruits" })
+	void multipleFieldSources(String fruit) {
+		assertFruit(fruit);
+	}
+
+	static final Collection<String> additionalFruits = Arrays.asList("cherry", "dewberry");
+	// end::multiple_fields_FieldSource_example[]
+	// @formatter:on
+
+	// @formatter:off
+	// tag::named_arguments_FieldSource_example[]
+	@ParameterizedTest
+	@FieldSource
+	void namedArgumentsSupplier(String fruit) {
+		assertFruit(fruit);
+	}
+
+	static final Supplier<Stream<Arguments>> namedArgumentsSupplier = () -> Stream.of(
+		arguments(named("Apple", "apple")),
+		arguments(named("Banana", "banana"))
+	);
+	// end::named_arguments_FieldSource_example[]
+	// @formatter:on
+
+	private static void assertFruit(String fruit) {
+		assertTrue(Arrays.asList("apple", "banana", "cherry", "dewberry").contains(fruit));
+	}
+
+	// @formatter:off
+	// tag::multi_arg_FieldSource_example[]
+	@ParameterizedTest
+	@FieldSource("stringIntAndListArguments")
+	void testWithMultiArgFieldSource(String str, int num, List<String> list) {
+		assertEquals(5, str.length());
+		assertTrue(num >=1 && num <=2);
+		assertEquals(2, list.size());
+	}
+
+	static List<Arguments> stringIntAndListArguments = Arrays.asList(
+		arguments("apple", 1, Arrays.asList("a", "b")),
+		arguments("lemon", 2, Arrays.asList("x", "y"))
+	);
+	// end::multi_arg_FieldSource_example[]
 	// @formatter:on
 
 	// @formatter:off
@@ -263,6 +365,29 @@ class ParameterizedTestDemo {
 		}
 	}
 	// end::ArgumentsProvider_example[]
+
+	@ParameterizedTest
+	@ArgumentsSource(MyArgumentsProviderWithConstructorInjection.class)
+	void testWithArgumentsSourceWithConstructorInjection(String argument) {
+		assertNotNull(argument);
+	}
+
+	static
+	// tag::ArgumentsProviderWithConstructorInjection_example[]
+	public class MyArgumentsProviderWithConstructorInjection implements ArgumentsProvider {
+
+		private final TestInfo testInfo;
+
+		public MyArgumentsProviderWithConstructorInjection(TestInfo testInfo) {
+			this.testInfo = testInfo;
+		}
+
+		@Override
+		public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
+			return Stream.of(Arguments.of(testInfo.getDisplayName()));
+		}
+	}
+	// end::ArgumentsProviderWithConstructorInjection_example[]
 
 	// tag::ParameterResolver_example[]
 	@BeforeEach
@@ -467,4 +592,46 @@ class ParameterizedTestDemo {
 	}
 	// end::named_arguments[]
 	// @formatter:on
+
+	// @formatter:off
+	// tag::named_argument_set[]
+	@DisplayName("A parameterized test with named argument sets")
+	@ParameterizedTest
+	@FieldSource("argumentSets")
+	void testWithArgumentSets(File file1, File file2) {
+	}
+
+	static List<Arguments> argumentSets = Arrays.asList(
+		argumentSet("Important files", new File("path1"), new File("path2")),
+		argumentSet("Other files", new File("path3"), new File("path4"))
+	);
+	// end::named_argument_set[]
+	// @formatter:on
+
+	// tag::repeatable_annotations[]
+	@DisplayName("A parameterized test that makes use of repeatable annotations")
+	@ParameterizedTest
+	@MethodSource("someProvider")
+	@MethodSource("otherProvider")
+	void testWithRepeatedAnnotation(String argument) {
+		assertNotNull(argument);
+	}
+
+	static Stream<String> someProvider() {
+		return Stream.of("foo");
+	}
+
+	static Stream<String> otherProvider() {
+		return Stream.of("bar");
+	}
+	// end::repeatable_annotations[]
+
+	@extensions.ExpectToFail
+	// tag::argument_count_validation[]
+	@ParameterizedTest(argumentCountValidation = ArgumentCountValidationMode.STRICT)
+	@CsvSource({ "42, -666" })
+	void testWithArgumentCountValidation(int number) {
+		assertTrue(number > 0);
+	}
+	// end::argument_count_validation[]
 }

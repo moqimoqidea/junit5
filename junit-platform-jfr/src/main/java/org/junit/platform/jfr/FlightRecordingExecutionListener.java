@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,7 +10,7 @@
 
 package org.junit.platform.jfr;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
+import static org.apiguardian.api.API.Status.STABLE;
 
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +26,7 @@ import jdk.jfr.StackTrace;
 
 import org.apiguardian.api.API;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
@@ -38,7 +39,7 @@ import org.junit.platform.launcher.TestPlan;
  * @since 1.8
  * @see <a href="https://openjdk.java.net/jeps/328">JEP 328: Flight Recorder</a>
  */
-@API(status = EXPERIMENTAL, since = "1.8")
+@API(status = STABLE, since = "1.11")
 public class FlightRecordingExecutionListener implements TestExecutionListener {
 
 	private final AtomicReference<TestPlanExecutionEvent> testPlanExecutionEvent = new AtomicReference<>();
@@ -95,6 +96,14 @@ public class FlightRecordingExecutionListener implements TestExecutionListener {
 			event.value = entry.getValue();
 			event.commit();
 		}
+	}
+
+	@Override
+	public void fileEntryPublished(TestIdentifier testIdentifier, FileEntry file) {
+		FileEntryEvent event = new FileEntryEvent();
+		event.uniqueId = testIdentifier.getUniqueId();
+		event.path = file.getPath().toAbsolutePath().toString();
+		event.commit();
 	}
 
 	@Category({ "JUnit", "Execution" })
@@ -158,5 +167,15 @@ public class FlightRecordingExecutionListener implements TestExecutionListener {
 		String key;
 		@Label("Value")
 		String value;
+	}
+
+	@Label("File Entry")
+	@Name("org.junit.FileEntry")
+	static class FileEntryEvent extends ExecutionEvent {
+		@UniqueId
+		@Label("Unique Id")
+		String uniqueId;
+		@Label("Path")
+		String path;
 	}
 }

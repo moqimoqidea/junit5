@@ -5,21 +5,29 @@ inputs:
     required: true
     description: Gradle arguments
     default: build
+  encryptionKey:
+    required: true
+    description: Gradle cache encryption key
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-java@v3
+    - uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4
       id: setup-gradle-jdk
       with:
         distribution: temurin
-        java-version: 17
-    - uses: gradle/gradle-build-action@v2
+        java-version: 21
+        check-latest: true
+    - uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4
+      with:
+        cache-encryption-key: ${{ inputs.encryptionKey }}
+    - shell: bash
       env:
         JAVA_HOME: ${{ steps.setup-gradle-jdk.outputs.path }}
-      with:
-        arguments: |
-          -Porg.gradle.java.installations.auto-download=false
-          -PenablePredictiveTestSelection=${{ github.event_name == 'pull_request' }}
-          "-Dscan.value.GitHub job=${{ github.job }}"
-          javaToolchains
-          ${{ inputs.arguments }}
+      run: |
+        ./gradlew \
+        -Porg.gradle.java.installations.auto-download=false \
+        -Pjunit.develocity.predictiveTestSelection.enabled=true \
+        -Pjunit.develocity.predictiveTestSelection.selectRemainingTests=${{ github.event_name != 'pull_request' }} \
+        "-Dscan.value.GitHub job=${{ github.job }}" \
+        javaToolchains \
+        ${{ inputs.arguments }}

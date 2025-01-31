@@ -10,13 +10,15 @@ description = "JUnit Platform Console Standalone"
 dependencies {
 	shadowed(projects.junitPlatformReporting)
 	shadowed(projects.junitPlatformConsole)
-	shadowed(projects.junitPlatformSuite)
+	shadowed(projects.junitPlatformSuiteEngine)
 	shadowed(projects.junitJupiterEngine)
 	shadowed(projects.junitJupiterParams)
 	shadowed(projects.junitVintageEngine)
 	shadowed(libs.apiguardian) {
 		because("downstream projects need it to avoid compiler warnings")
 	}
+
+	osgiVerification(libs.openTestReporting.tooling.spi)
 }
 
 val jupiterVersion = rootProject.version
@@ -29,8 +31,8 @@ tasks {
 		}
 	}
 	val shadowedArtifactsFile by registering(WriteArtifactsFile::class) {
-		from(configurations.shadowed)
-		outputFile.set(layout.buildDirectory.file("shadowed-artifacts"))
+		from(configurations.shadowedClasspath)
+		outputFile = layout.buildDirectory.file("shadowed-artifacts")
 	}
 	shadowJar {
 		// https://github.com/junit-team/junit5/issues/2557
@@ -39,11 +41,11 @@ tasks {
 		// https://github.com/junit-team/junit5/issues/761
 		// prevent duplicates, add 3rd-party licenses explicitly
 		exclude("META-INF/LICENSE*.md")
-		from(project.projects.junitPlatformConsole.dependencyProject.projectDir) {
+		from(dependencyProject(project.projects.junitPlatformConsole).projectDir) {
 			include("LICENSE-picocli.md")
 			into("META-INF")
 		}
-		from(project.projects.junitJupiterParams.dependencyProject.projectDir) {
+		from(dependencyProject(project.projects.junitJupiterParams).projectDir) {
 			include("LICENSE-univocity-parsers.md")
 			into("META-INF")
 		}
@@ -52,10 +54,11 @@ tasks {
 		}
 
 		bundle {
+			val importAPIGuardian: String by extra
 			bnd("""
 				# Customize the imports because this is an aggregate jar
 				Import-Package: \
-					${extra["importAPIGuardian"]},\
+					$importAPIGuardian,\
 					kotlin.*;resolution:="optional",\
 					*
 				# Disable the APIGuardian plugin since everything was already

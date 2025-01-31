@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -64,6 +64,10 @@ class DefensiveAllDefaultPossibilitiesBuilder extends AllDefaultPossibilitiesBui
 		return runner;
 	}
 
+	boolean isIgnored(Runner runner) {
+		return runner instanceof IgnoredClassRunner || runner instanceof IgnoringRunnerDecorator;
+	}
+
 	/**
 	 * Instead of checking for the {@link Ignore} annotation and returning an
 	 * {@link IgnoredClassRunner} from {@link IgnoredBuilder}, we've let the
@@ -72,7 +76,7 @@ class DefensiveAllDefaultPossibilitiesBuilder extends AllDefaultPossibilitiesBui
 	 * override its runtime behavior (i.e. skip execution) but return its
 	 * regular {@link org.junit.runner.Description}.
 	 */
-	private Runner decorateIgnoredTestClass(Runner runner) {
+	private IgnoringRunnerDecorator decorateIgnoredTestClass(Runner runner) {
 		if (runner instanceof Filterable) {
 			return new FilterableIgnoringRunnerDecorator(runner);
 		}

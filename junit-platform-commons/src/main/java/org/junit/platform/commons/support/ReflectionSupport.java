@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,6 +11,7 @@
 package org.junit.platform.commons.support;
 
 import static org.apiguardian.api.API.Status.DEPRECATED;
+import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.MAINTAINED;
 
 import java.lang.reflect.Field;
@@ -18,6 +19,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -72,8 +74,8 @@ public final class ReflectionSupport {
 	}
 
 	/**
-	 * Try to load a class by its <em>primitive name</em> or <em>fully qualified name</em>,
-	 * using the default {@link ClassLoader}.
+	 * Try to load a class by its <em>primitive name</em> or <em>fully qualified
+	 * name</em>, using the default {@link ClassLoader}.
 	 *
 	 * <p>Class names for arrays may be specified using either the JVM's internal
 	 * String representation (e.g., {@code [[I} for {@code int[][]},
@@ -86,10 +88,78 @@ public final class ReflectionSupport {
 	 * {@code Try} containing the exception if no such class could be loaded;
 	 * never {@code null}
 	 * @since 1.4
+	 * @see #tryToLoadClass(String, ClassLoader)
 	 */
 	@API(status = MAINTAINED, since = "1.4")
 	public static Try<Class<?>> tryToLoadClass(String name) {
 		return ReflectionUtils.tryToLoadClass(name);
+	}
+
+	/**
+	 * Try to load a class by its <em>primitive name</em> or <em>fully qualified
+	 * name</em>, using the supplied {@link ClassLoader}.
+	 *
+	 * <p>See {@link ReflectionSupport#tryToLoadClass(String) tryToLoadClass(String)}
+	 * for details on support for class names for arrays.
+	 *
+	 * @param name the name of the class to load; never {@code null} or blank
+	 * @param classLoader the {@code ClassLoader} to use; never {@code null}
+	 * @return a successful {@code Try} containing the loaded class or a failed
+	 * {@code Try} containing the exception if no such class could be loaded;
+	 * never {@code null}
+	 * @since 1.10
+	 * @see #tryToLoadClass(String)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.10")
+	public static Try<Class<?>> tryToLoadClass(String name, ClassLoader classLoader) {
+		return ReflectionUtils.tryToLoadClass(name, classLoader);
+	}
+
+	/**
+	 * Try to get the {@linkplain Resource resources} for the supplied classpath
+	 * resource name.
+	 *
+	 * <p>The name of a <em>classpath resource</em> must follow the semantics
+	 * for resource paths as defined in {@link ClassLoader#getResource(String)}.
+	 *
+	 * <p>If the supplied classpath resource name is prefixed with a slash
+	 * ({@code /}), the slash will be removed.
+	 *
+	 * @param classpathResourceName the name of the resource to load; never
+	 * {@code null} or blank
+	 * @return a successful {@code Try} containing the loaded resources or a failed
+	 * {@code Try} containing the exception if no such resources could be loaded;
+	 * never {@code null}
+	 * @since 1.12
+	 * @see #tryToGetResources(String, ClassLoader)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static Try<Set<Resource>> tryToGetResources(String classpathResourceName) {
+		return ReflectionUtils.tryToGetResources(classpathResourceName);
+	}
+
+	/**
+	 * Try to load the {@linkplain Resource resources} for the supplied classpath
+	 * resource name, using the supplied {@link ClassLoader}.
+	 *
+	 * <p>The name of a <em>classpath resource</em> must follow the semantics
+	 * for resource paths as defined in {@link ClassLoader#getResource(String)}.
+	 *
+	 * <p>If the supplied classpath resource name is prefixed with a slash
+	 * ({@code /}), the slash will be removed.
+	 *
+	 * @param classpathResourceName the name of the resource to load; never
+	 * {@code null} or blank
+	 * @param classLoader the {@code ClassLoader} to use; never {@code null}
+	 * @return a successful {@code Try} containing the loaded resources or a failed
+	 * {@code Try} containing the exception if no such resources could be loaded;
+	 * never {@code null}
+	 * @since 1.12
+	 * @see #tryToGetResources(String)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static Try<Set<Resource>> tryToGetResources(String classpathResourceName, ClassLoader classLoader) {
+		return ReflectionUtils.tryToGetResources(classpathResourceName, classLoader);
 	}
 
 	/**
@@ -113,6 +183,27 @@ public final class ReflectionSupport {
 			Predicate<String> classNameFilter) {
 
 		return ReflectionUtils.findAllClassesInClasspathRoot(root, classFilter, classNameFilter);
+	}
+
+	/**
+	 * Find all {@linkplain Resource resources} in the supplied classpath {@code root}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The classpath scanning algorithm searches recursively in subpackages
+	 * beginning with the root of the classpath.
+	 *
+	 * @param root the URI for the classpath root in which to scan; never
+	 * {@code null}
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return an immutable list of all such resources found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #findAllResourcesInPackage(String, Predicate)
+	 * @see #findAllResourcesInModule(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static List<Resource> findAllResourcesInClasspathRoot(URI root, Predicate<Resource> resourceFilter) {
+		return ReflectionUtils.findAllResourcesInClasspathRoot(root, resourceFilter);
 	}
 
 	/**
@@ -141,6 +232,27 @@ public final class ReflectionSupport {
 	}
 
 	/**
+	 * Find all {@linkplain Resource resources} in the supplied classpath {@code root}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The classpath scanning algorithm searches recursively in subpackages
+	 * beginning with the root of the classpath.
+	 *
+	 * @param root the URI for the classpath root in which to scan; never
+	 * {@code null}
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return a stream of all such classes found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #streamAllResourcesInPackage(String, Predicate)
+	 * @see #streamAllResourcesInModule(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static Stream<Resource> streamAllResourcesInClasspathRoot(URI root, Predicate<Resource> resourceFilter) {
+		return ReflectionUtils.streamAllResourcesInClasspathRoot(root, resourceFilter);
+	}
+
+	/**
 	 * Find all {@linkplain Class classes} in the supplied {@code basePackageName}
 	 * that match the specified {@code classFilter} and {@code classNameFilter}
 	 * predicates.
@@ -165,12 +277,36 @@ public final class ReflectionSupport {
 	}
 
 	/**
+	 * Find all {@linkplain Resource resources} in the supplied {@code basePackageName}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The classpath scanning algorithm searches recursively in subpackages
+	 * beginning within the supplied base package. The resulting list may include
+	 * identically named resources from different classpath roots.
+	 *
+	 * @param basePackageName the name of the base package in which to start
+	 * scanning; must not be {@code null} and must be valid in terms of Java
+	 * syntax
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return an immutable list of all such classes found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #findAllResourcesInClasspathRoot(URI, Predicate)
+	 * @see #findAllResourcesInModule(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static List<Resource> findAllResourcesInPackage(String basePackageName, Predicate<Resource> resourceFilter) {
+		return ReflectionUtils.findAllResourcesInPackage(basePackageName, resourceFilter);
+	}
+
+	/**
 	 * Find all {@linkplain Class classes} in the supplied {@code basePackageName}
 	 * that match the specified {@code classFilter} and {@code classNameFilter}
 	 * predicates.
 	 *
 	 * <p>The classpath scanning algorithm searches recursively in subpackages
-	 * beginning within the supplied base package.
+	 * beginning within the supplied base package. The resulting stream may
+	 * include identically named resources from different classpath roots.
 	 *
 	 * @param basePackageName the name of the base package in which to start
 	 * scanning; must not be {@code null} and must be valid in terms of Java
@@ -191,6 +327,31 @@ public final class ReflectionSupport {
 	}
 
 	/**
+	 * Find all {@linkplain Resource resources} in the supplied {@code basePackageName}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The classpath scanning algorithm searches recursively in subpackages
+	 * beginning within the supplied base package. The resulting stream may
+	 * include identically named resources from different classpath roots.
+	 *
+	 * @param basePackageName the name of the base package in which to start
+	 * scanning; must not be {@code null} and must be valid in terms of Java
+	 * syntax
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return a stream of all such resources found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #streamAllResourcesInClasspathRoot(URI, Predicate)
+	 * @see #streamAllResourcesInModule(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static Stream<Resource> streamAllResourcesInPackage(String basePackageName,
+			Predicate<Resource> resourceFilter) {
+
+		return ReflectionUtils.streamAllResourcesInPackage(basePackageName, resourceFilter);
+	}
+
+	/**
 	 * Find all {@linkplain Class classes} in the supplied {@code moduleName}
 	 * that match the specified {@code classFilter} and {@code classNameFilter}
 	 * predicates.
@@ -208,10 +369,32 @@ public final class ReflectionSupport {
 	 * @see #findAllClassesInClasspathRoot(URI, Predicate, Predicate)
 	 * @see #findAllClassesInPackage(String, Predicate, Predicate)
 	 */
+	@API(status = MAINTAINED, since = "1.1.1")
 	public static List<Class<?>> findAllClassesInModule(String moduleName, Predicate<Class<?>> classFilter,
 			Predicate<String> classNameFilter) {
 
 		return ReflectionUtils.findAllClassesInModule(moduleName, classFilter, classNameFilter);
+	}
+
+	/**
+	 * Find all {@linkplain Resource resources} in the supplied {@code moduleName}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The module-path scanning algorithm searches recursively in all
+	 * packages contained in the module.
+	 *
+	 * @param moduleName the name of the module to scan; never {@code null} or
+	 * <em>empty</em>
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return an immutable list of all such resources found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #findAllResourcesInClasspathRoot(URI, Predicate)
+	 * @see #findAllResourcesInPackage(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static List<Resource> findAllResourcesInModule(String moduleName, Predicate<Resource> resourceFilter) {
+		return ReflectionUtils.findAllResourcesInModule(moduleName, resourceFilter);
 	}
 
 	/**
@@ -237,6 +420,27 @@ public final class ReflectionSupport {
 			Predicate<String> classNameFilter) {
 
 		return ReflectionUtils.streamAllClassesInModule(moduleName, classFilter, classNameFilter);
+	}
+
+	/**
+	 * Find all {@linkplain Resource resources} in the supplied {@code moduleName}
+	 * that match the specified {@code resourceFilter} predicate.
+	 *
+	 * <p>The module-path scanning algorithm searches recursively in all
+	 * packages contained in the module.
+	 *
+	 * @param moduleName the name of the module to scan; never {@code null} or
+	 * <em>empty</em>
+	 * @param resourceFilter the resource type filter; never {@code null}
+	 * @return a stream of all such resources found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 * @see #streamAllResourcesInClasspathRoot(URI, Predicate)
+	 * @see #streamAllResourcesInPackage(String, Predicate)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.11")
+	public static Stream<Resource> streamAllResourcesInModule(String moduleName, Predicate<Resource> resourceFilter) {
+		return ReflectionUtils.streamAllResourcesInModule(moduleName, resourceFilter);
 	}
 
 	/**
@@ -276,13 +480,13 @@ public final class ReflectionSupport {
 	}
 
 	/**
-	 * Find all {@linkplain Field fields} of the supplied class or interface
-	 * that match the specified {@code predicate}.
+	 * Find all distinct {@linkplain Field fields} of the supplied class or
+	 * interface that match the specified {@code predicate}.
 	 *
 	 * <p>Fields declared in the same class or interface will be ordered using
 	 * an algorithm that is deterministic but intentionally nonobvious.
 	 *
-	 * <p>The results will not contain fields that are <em>hidden</em> or
+	 * <p>The results will not contain fields that are
 	 * {@linkplain Field#isSynthetic() synthetic}.
 	 *
 	 * @param clazz the class or interface in which to find the fields; never {@code null}
@@ -303,13 +507,13 @@ public final class ReflectionSupport {
 	}
 
 	/**
-	 * Find all {@linkplain Field fields} of the supplied class or interface
-	 * that match the specified {@code predicate}.
+	 * Find all distinct {@linkplain Field fields} of the supplied class or
+	 * interface that match the specified {@code predicate}.
 	 *
 	 * <p>Fields declared in the same class or interface will be ordered using
 	 * an algorithm that is deterministic but intentionally nonobvious.
 	 *
-	 * <p>The results will not contain fields that are <em>hidden</em> or
+	 * <p>The results will not contain fields that are
 	 * {@linkplain Field#isSynthetic() synthetic}.
 	 *
 	 * @param clazz the class or interface in which to find the fields; never {@code null}
@@ -351,6 +555,11 @@ public final class ReflectionSupport {
 	 * interface and traversing up the type hierarchy until such a method is
 	 * found or the type hierarchy is exhausted.
 	 *
+	 * <p>As of JUnit Platform 1.10, this method uses the {@link ClassLoader} of
+	 * the supplied {@code clazz} to load parameter types instead of using the
+	 * <em>default</em> {@code ClassLoader}, which allows parameter types to be
+	 * resolved in different {@code ClassLoader} arrangements.
+	 *
 	 * <p>The algorithm does not search for methods in {@link java.lang.Object}.
 	 *
 	 * @param clazz the class or interface in which to find the method; never {@code null}
@@ -389,8 +598,7 @@ public final class ReflectionSupport {
 	 * Find all distinct {@linkplain Method methods} of the supplied class or
 	 * interface that match the specified {@code predicate}.
 	 *
-	 * <p>The results will not contain instance methods that are <em>overridden</em>
-	 * or {@code static} methods that are <em>hidden</em>.
+	 * <p>The results will not contain methods that are <em>overridden</em>.
 	 *
 	 * <p>If you are looking for methods annotated with a certain annotation
 	 * type, consider using
@@ -415,8 +623,7 @@ public final class ReflectionSupport {
 	 * Find all distinct {@linkplain Method methods} of the supplied class or
 	 * interface that match the specified {@code predicate}.
 	 *
-	 * <p>The results will not contain instance methods that are <em>overridden</em>
-	 * or {@code static} methods that are <em>hidden</em>.
+	 * <p>The results will not contain methods that are <em>overridden</em>.
 	 *
 	 * <p>If you are looking for methods annotated with a certain annotation
 	 * type, consider using
@@ -491,6 +698,23 @@ public final class ReflectionSupport {
 			throws JUnitException {
 
 		return ReflectionUtils.streamNestedClasses(clazz, predicate);
+	}
+
+	/**
+	 * Make the supplied field accessible via reflection.
+	 *
+	 * <p>If you're looking for similar functionality for constructors or
+	 * methods, consider using {@link #newInstance(Class, Object...)} or
+	 * {@link #invokeMethod(Method, Object, Object...)}.
+	 *
+	 * @param field the field to make accessible; never {@code null}
+	 * @return the supplied field
+	 * @since 1.12
+	 * @see Field#setAccessible(boolean)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static Field makeAccessible(Field field) {
+		return ReflectionUtils.makeAccessible(Preconditions.notNull(field, "field must not be null"));
 	}
 
 }

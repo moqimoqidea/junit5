@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,6 +14,7 @@ import static org.apiguardian.api.API.Status.STABLE;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -22,10 +23,11 @@ import org.apiguardian.api.API;
 import org.junit.jupiter.params.ParameterizedTest;
 
 /**
- * {@code @MethodSource} is an {@link ArgumentsSource} which provides access
- * to values returned from {@linkplain #value() factory methods} of the class in
- * which this annotation is declared or from static factory methods in external
- * classes referenced by <em>fully qualified method name</em>.
+ * {@code @MethodSource} is a {@linkplain Repeatable repeatable}
+ * {@link ArgumentsSource} which provides access to values returned from
+ * {@linkplain #value() factory methods} of the class in which this annotation
+ * is declared or from static factory methods in external classes referenced
+ * by <em>fully qualified method name</em>.
  *
  * <p>Each factory method must generate a <em>stream</em> of <em>arguments</em>,
  * and each set of "arguments" within the "stream" will be provided as the physical
@@ -94,6 +96,7 @@ import org.junit.jupiter.params.ParameterizedTest;
  * implementations of {@link org.junit.jupiter.api.extension.ParameterResolver}.
  *
  * @since 5.0
+ * @see FieldSource
  * @see Arguments
  * @see ArgumentsSource
  * @see ParameterizedTest
@@ -102,6 +105,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 @Target({ ElementType.ANNOTATION_TYPE, ElementType.METHOD })
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@Repeatable(MethodSources.class)
 @API(status = STABLE, since = "5.7")
 @ArgumentsSource(MethodArgumentsProvider.class)
 @SuppressWarnings("exports")
@@ -111,11 +115,19 @@ public @interface MethodSource {
 	 * The names of factory methods within the test class or in external classes
 	 * to use as sources for arguments.
 	 *
-	 * <p>Factory methods in external classes must be referenced by <em>fully
-	 * qualified method name</em> &mdash; for example,
-	 * {@code com.example.StringsProviders#blankStrings} or
-	 * {@code com.example.TopLevelClass$NestedClass#classMethod} for a factory
+	 * <p>Factory methods in external classes must be referenced by
+	 * <em>fully qualified method name</em> &mdash; for example,
+	 * {@code "com.example.StringsProviders#blankStrings"} or
+	 * {@code "com.example.TopLevelClass$NestedClass#classMethod"} for a factory
 	 * method in a static nested class.
+	 *
+	 * <p>If a factory method accepts arguments that are provided by a
+	 * {@link org.junit.jupiter.api.extension.ParameterResolver ParameterResolver},
+	 * you can supply the formal parameter list in the qualified method name to
+	 * disambiguate between overloaded variants of the factory method. For example,
+	 * {@code "blankStrings(int)"} for a local qualified method name or
+	 * {@code "com.example.StringsProviders#blankStrings(int)"} for a fully qualified
+	 * method name.
 	 *
 	 * <p>If no factory method names are declared, a method within the test class
 	 * that has the same name as the test method will be used as the factory

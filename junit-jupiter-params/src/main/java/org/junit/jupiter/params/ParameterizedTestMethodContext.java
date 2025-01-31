@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -12,7 +12,7 @@ package org.junit.jupiter.params;
 
 import static org.junit.jupiter.params.ParameterizedTestMethodContext.ResolverType.AGGREGATOR;
 import static org.junit.jupiter.params.ParameterizedTestMethodContext.ResolverType.CONVERTER;
-import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
+import static org.junit.platform.commons.support.AnnotationSupport.isAnnotated;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.params.aggregator.AggregateWith;
@@ -30,9 +31,8 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.converter.DefaultArgumentConverter;
 import org.junit.jupiter.params.support.AnnotationConsumerInitializer;
-import org.junit.platform.commons.support.ReflectionSupport;
-import org.junit.platform.commons.util.AnnotationUtils;
-import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.commons.support.AnnotationSupport;
+import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.StringUtils;
 
 /**
@@ -43,12 +43,17 @@ import org.junit.platform.commons.util.StringUtils;
  */
 class ParameterizedTestMethodContext {
 
+	final Method method;
+	final ParameterizedTest annotation;
+
 	private final Parameter[] parameters;
 	private final Resolver[] resolvers;
 	private final List<ResolverType> resolverTypes;
 
-	ParameterizedTestMethodContext(Method testMethod) {
-		this.parameters = testMethod.getParameters();
+	ParameterizedTestMethodContext(Method method, ParameterizedTest annotation) {
+		this.method = Preconditions.notNull(method, "method must not be null");
+		this.annotation = Preconditions.notNull(annotation, "annotation must not be null");
+		this.parameters = method.getParameters();
 		this.resolvers = new Resolver[this.parameters.length];
 		this.resolverTypes = new ArrayList<>(this.parameters.length);
 		for (Parameter parameter : this.parameters) {
@@ -161,14 +166,15 @@ class ParameterizedTestMethodContext {
 	 * Resolve the parameter for the supplied context using the supplied
 	 * arguments.
 	 */
-	Object resolve(ParameterContext parameterContext, Object[] arguments, int invocationIndex) {
-		return getResolver(parameterContext).resolve(parameterContext, arguments, invocationIndex);
+	Object resolve(ParameterContext parameterContext, ExtensionContext extensionContext, Object[] arguments,
+			int invocationIndex) {
+		return getResolver(parameterContext, extensionContext).resolve(parameterContext, arguments, invocationIndex);
 	}
 
-	private Resolver getResolver(ParameterContext parameterContext) {
+	private Resolver getResolver(ParameterContext parameterContext, ExtensionContext extensionContext) {
 		int index = parameterContext.getIndex();
 		if (resolvers[index] == null) {
-			resolvers[index] = resolverTypes.get(index).createResolver(parameterContext);
+			resolvers[index] = resolverTypes.get(index).createResolver(parameterContext, extensionContext);
 		}
 		return resolvers[index];
 	}
@@ -177,11 +183,11 @@ class ParameterizedTestMethodContext {
 
 		CONVERTER {
 			@Override
-			Resolver createResolver(ParameterContext parameterContext) {
+			Resolver createResolver(ParameterContext parameterContext, ExtensionContext extensionContext) {
 				try { // @formatter:off
-					return AnnotationUtils.findAnnotation(parameterContext.getParameter(), ConvertWith.class)
+					return AnnotationSupport.findAnnotation(parameterContext.getParameter(), ConvertWith.class)
 							.map(ConvertWith::value)
-							.map(clazz -> (ArgumentConverter) ReflectionUtils.newInstance(clazz))
+							.map(clazz -> ParameterizedTestSpiInstantiator.instantiate(ArgumentConverter.class, clazz, extensionContext))
 							.map(converter -> AnnotationConsumerInitializer.initialize(parameterContext.getParameter(), converter))
 							.map(Converter::new)
 							.orElse(Converter.DEFAULT);
@@ -194,11 +200,11 @@ class ParameterizedTestMethodContext {
 
 		AGGREGATOR {
 			@Override
-			Resolver createResolver(ParameterContext parameterContext) {
+			Resolver createResolver(ParameterContext parameterContext, ExtensionContext extensionContext) {
 				try { // @formatter:off
-					return AnnotationUtils.findAnnotation(parameterContext.getParameter(), AggregateWith.class)
+					return AnnotationSupport.findAnnotation(parameterContext.getParameter(), AggregateWith.class)
 							.map(AggregateWith::value)
-							.map(clazz -> (ArgumentsAggregator) ReflectionSupport.newInstance(clazz))
+							.map(clazz -> ParameterizedTestSpiInstantiator.instantiate(ArgumentsAggregator.class, clazz, extensionContext))
 							.map(Aggregator::new)
 							.orElse(Aggregator.DEFAULT);
 				} // @formatter:on
@@ -208,7 +214,7 @@ class ParameterizedTestMethodContext {
 			}
 		};
 
-		abstract Resolver createResolver(ParameterContext parameterContext);
+		abstract Resolver createResolver(ParameterContext parameterContext, ExtensionContext extensionContext);
 
 	}
 
@@ -253,7 +259,7 @@ class ParameterizedTestMethodContext {
 
 		@Override
 		public Object resolve(ParameterContext parameterContext, Object[] arguments, int invocationIndex) {
-			ArgumentsAccessor accessor = new DefaultArgumentsAccessor(invocationIndex, arguments);
+			ArgumentsAccessor accessor = new DefaultArgumentsAccessor(parameterContext, invocationIndex, arguments);
 			try {
 				return this.argumentsAggregator.aggregateArguments(accessor, parameterContext);
 			}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -15,10 +15,10 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.api.extension.ExecutableInvoker;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstances;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
+import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
@@ -38,21 +38,21 @@ final class ClassExtensionContext extends AbstractExtensionContext<ClassBasedTes
 	 * Create a new {@code ClassExtensionContext} with {@link Lifecycle#PER_METHOD}.
 	 *
 	 * @see #ClassExtensionContext(ExtensionContext, EngineExecutionListener, ClassBasedTestDescriptor,
-	 * Lifecycle, JupiterConfiguration, ThrowableCollector, ExecutableInvoker)
+	 * Lifecycle, JupiterConfiguration, ExtensionRegistry, ThrowableCollector)
 	 */
 	ClassExtensionContext(ExtensionContext parent, EngineExecutionListener engineExecutionListener,
 			ClassBasedTestDescriptor testDescriptor, JupiterConfiguration configuration,
-			ThrowableCollector throwableCollector, ExecutableInvoker executableInvoker) {
+			ExtensionRegistry extensionRegistry, ThrowableCollector throwableCollector) {
 
-		this(parent, engineExecutionListener, testDescriptor, Lifecycle.PER_METHOD, configuration, throwableCollector,
-			executableInvoker);
+		this(parent, engineExecutionListener, testDescriptor, Lifecycle.PER_METHOD, configuration, extensionRegistry,
+			throwableCollector);
 	}
 
 	ClassExtensionContext(ExtensionContext parent, EngineExecutionListener engineExecutionListener,
 			ClassBasedTestDescriptor testDescriptor, Lifecycle lifecycle, JupiterConfiguration configuration,
-			ThrowableCollector throwableCollector, ExecutableInvoker executableInvoker) {
+			ExtensionRegistry extensionRegistry, ThrowableCollector throwableCollector) {
 
-		super(parent, engineExecutionListener, testDescriptor, configuration, executableInvoker);
+		super(parent, engineExecutionListener, testDescriptor, configuration, extensionRegistry);
 
 		this.lifecycle = lifecycle;
 		this.throwableCollector = throwableCollector;

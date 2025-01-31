@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,8 +14,9 @@ import static java.util.Collections.synchronizedMap;
 import static java.util.function.Predicate.isEqual;
 import static java.util.stream.Collectors.toList;
 import static org.apiguardian.api.API.Status.INTERNAL;
+import static org.junit.platform.commons.support.HierarchyTraversalMode.TOP_DOWN;
+import static org.junit.platform.commons.support.ReflectionSupport.findMethods;
 import static org.junit.platform.commons.util.FunctionUtils.where;
-import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -72,7 +73,8 @@ public class TestSourceProvider {
 	}
 
 	private Method findMethod(Class<?> testClass, String methodName) {
-		List<Method> methods = methodsCache.computeIfAbsent(testClass, clazz -> findMethods(clazz, m -> true)).stream() //
+		List<Method> methods = methodsCache.computeIfAbsent(testClass,
+			clazz -> findMethods(clazz, m -> true, TOP_DOWN)).stream() //
 				.filter(where(Method::getName, isEqual(methodName))) //
 				.collect(toList());
 		if (methods.isEmpty()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -13,10 +13,12 @@ package org.junit.jupiter.engine.config;
 import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.junit.jupiter.api.io.CleanupMode.ALWAYS;
 import static org.junit.jupiter.api.io.TempDir.DEFAULT_CLEANUP_MODE_PROPERTY_NAME;
+import static org.junit.jupiter.api.io.TempDir.DEFAULT_FACTORY_PROPERTY_NAME;
 
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.ClassOrderer;
@@ -24,11 +26,15 @@ import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.extension.ExecutionCondition;
+import org.junit.jupiter.api.extension.Extension;
+import org.junit.jupiter.api.extension.TestInstantiationAwareExtension.ExtensionContextScope;
 import org.junit.jupiter.api.io.CleanupMode;
+import org.junit.jupiter.api.io.TempDirFactory;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.platform.commons.util.ClassNamePatternFilterUtils;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.engine.ConfigurationParameters;
+import org.junit.platform.engine.reporting.OutputDirectoryProvider;
 
 /**
  * Default implementation of the {@link JupiterConfiguration} API.
@@ -56,11 +62,39 @@ public class DefaultJupiterConfiguration implements JupiterConfiguration {
 	private static final EnumConfigurationParameterConverter<CleanupMode> cleanupModeConverter = //
 		new EnumConfigurationParameterConverter<>(CleanupMode.class, "cleanup mode");
 
-	private final ConfigurationParameters configurationParameters;
+	private static final InstantiatingConfigurationParameterConverter<TempDirFactory> tempDirFactoryConverter = //
+		new InstantiatingConfigurationParameterConverter<>(TempDirFactory.class, "temp dir factory");
 
-	public DefaultJupiterConfiguration(ConfigurationParameters configurationParameters) {
+	private static final EnumConfigurationParameterConverter<ExtensionContextScope> extensionContextScopeConverter = //
+		new EnumConfigurationParameterConverter<>(ExtensionContextScope.class, "extension context scope");
+
+	private final ConfigurationParameters configurationParameters;
+	private final OutputDirectoryProvider outputDirectoryProvider;
+
+	public DefaultJupiterConfiguration(ConfigurationParameters configurationParameters,
+			OutputDirectoryProvider outputDirectoryProvider) {
 		this.configurationParameters = Preconditions.notNull(configurationParameters,
 			"ConfigurationParameters must not be null");
+		this.outputDirectoryProvider = outputDirectoryProvider;
+	}
+
+	@Override
+	public Predicate<Class<? extends Extension>> getFilterForAutoDetectedExtensions() {
+		String includePattern = getExtensionAutoDetectionIncludePattern();
+		String excludePattern = getExtensionAutoDetectionExcludePattern();
+		Predicate<String> predicate = ClassNamePatternFilterUtils.includeMatchingClassNames(includePattern) //
+				.and(ClassNamePatternFilterUtils.excludeMatchingClassNames(excludePattern));
+		return clazz -> predicate.test(clazz.getName());
+	}
+
+	private String getExtensionAutoDetectionIncludePattern() {
+		return configurationParameters.get(EXTENSIONS_AUTODETECTION_INCLUDE_PROPERTY_NAME) //
+				.orElse(ClassNamePatternFilterUtils.ALL_PATTERN);
+	}
+
+	private String getExtensionAutoDetectionExcludePattern() {
+		return configurationParameters.get(EXTENSIONS_AUTODETECTION_EXCLUDE_PROPERTY_NAME) //
+				.orElse(ClassNamePatternFilterUtils.BLANK);
 	}
 
 	@Override
@@ -81,6 +115,11 @@ public class DefaultJupiterConfiguration implements JupiterConfiguration {
 	@Override
 	public boolean isExtensionAutoDetectionEnabled() {
 		return configurationParameters.getBoolean(EXTENSIONS_AUTODETECTION_ENABLED_PROPERTY_NAME).orElse(false);
+	}
+
+	@Override
+	public boolean isThreadDumpOnTimeoutEnabled() {
+		return configurationParameters.getBoolean(EXTENSIONS_TIMEOUT_THREAD_DUMP_ENABLED_PROPERTY_NAME).orElse(false);
 	}
 
 	@Override
@@ -128,4 +167,22 @@ public class DefaultJupiterConfiguration implements JupiterConfiguration {
 		return cleanupModeConverter.get(configurationParameters, DEFAULT_CLEANUP_MODE_PROPERTY_NAME, ALWAYS);
 	}
 
+	@Override
+	public Supplier<TempDirFactory> getDefaultTempDirFactorySupplier() {
+		Supplier<Optional<TempDirFactory>> supplier = tempDirFactoryConverter.supply(configurationParameters,
+			DEFAULT_FACTORY_PROPERTY_NAME);
+		return () -> supplier.get().orElse(TempDirFactory.Standard.INSTANCE);
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public ExtensionContextScope getDefaultTestInstantiationExtensionContextScope() {
+		return extensionContextScopeConverter.get(configurationParameters,
+			DEFAULT_TEST_INSTANTIATION_EXTENSION_CONTEXT_SCOPE_PROPERTY_NAME, ExtensionContextScope.DEFAULT);
+	}
+
+	@Override
+	public OutputDirectoryProvider getOutputDirectoryProvider() {
+		return outputDirectoryProvider;
+	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -284,7 +284,8 @@ public final class TestIdentifier implements Serializable {
 		source = serializedForm.source;
 		tags = serializedForm.tags;
 		type = serializedForm.type;
-		parentId = UniqueId.parse(serializedForm.parentId);
+		String parentId = serializedForm.parentId;
+		this.parentId = parentId == null ? null : UniqueId.parse(parentId);
 		legacyReportingName = serializedForm.legacyReportingName;
 	}
 
@@ -307,7 +308,8 @@ public final class TestIdentifier implements Serializable {
 
 		SerializedForm(TestIdentifier testIdentifier) {
 			this.uniqueId = testIdentifier.uniqueId.toString();
-			this.parentId = testIdentifier.parentId.toString();
+			UniqueId parentId = testIdentifier.parentId;
+			this.parentId = parentId == null ? null : parentId.toString();
 			this.displayName = testIdentifier.displayName;
 			this.legacyReportingName = testIdentifier.legacyReportingName;
 			this.source = testIdentifier.source;

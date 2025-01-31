@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,7 +10,6 @@
 
 package org.junit.platform.launcher.tagexpression;
 
-import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -87,7 +86,7 @@ class TokenizerTests {
 	}
 
 	private List<String> tokenStringsExtractedFrom(String expression) {
-		return tokensExtractedFrom(expression).map(Token::string).collect(toList());
+		return tokensExtractedFrom(expression).map(Token::string).toList();
 	}
 
 	private Stream<Token> tokensExtractedFrom(String expression) {

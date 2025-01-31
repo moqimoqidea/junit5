@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,7 +10,6 @@
 
 package org.junit.platform.launcher.core;
 
-import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,11 +24,14 @@ import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.LogRecord;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.fixtures.TrackLogRecords;
 import org.junit.jupiter.engine.JupiterTestEngine;
 import org.junit.platform.commons.PreconditionViolationException;
+import org.junit.platform.commons.logging.LogRecordListener;
 import org.junit.platform.engine.EngineDiscoveryRequest;
 import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
@@ -38,6 +40,7 @@ import org.junit.platform.engine.UniqueId;
 import org.junit.platform.fakes.TestEngineSpy;
 import org.junit.platform.launcher.InterceptedTestEngine;
 import org.junit.platform.launcher.InterceptorInjectedLauncherSessionListener;
+import org.junit.platform.launcher.LauncherConstants;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.LauncherSessionListener;
 import org.junit.platform.launcher.TagFilter;
@@ -79,7 +82,8 @@ class LauncherFactoryTests {
 	}
 
 	@Test
-	void testExecutionListenersExcludedViaConfigParametersIsNotLoadedViaServiceApi() {
+	void testExecutionListenersExcludedViaConfigParametersIsNotLoadedViaServiceApi(
+			@TrackLogRecords LogRecordListener listener) {
 		withTestServices(() -> {
 			var value = "org.junit.*.launcher.listeners.Unused*,org.junit.*.launcher.listeners.AnotherUnused*";
 			withSystemProperty(DEACTIVATE_LISTENERS_PATTERN_PROPERTY_NAME, value, () -> {
@@ -93,6 +97,16 @@ class LauncherFactoryTests {
 				AnotherUnusedTestExecutionListener.called = false;
 
 				launcher.execute(request().build());
+
+				var logMessage = listener.stream(ServiceLoaderRegistry.class) //
+						.map(LogRecord::getMessage) //
+						.filter(it -> it.startsWith("Loaded TestExecutionListener instances")) //
+						.findAny();
+				assertThat(logMessage).isPresent();
+				assertThat(logMessage.get()) //
+						.contains("NoopTestExecutionListener@") //
+						.endsWith(" (excluded classes: [" + UnusedTestExecutionListener.class.getName() + ", "
+								+ AnotherUnusedTestExecutionListener.class.getName() + "])");
 
 				assertFalse(UnusedTestExecutionListener.called);
 				assertFalse(AnotherUnusedTestExecutionListener.called);
@@ -111,7 +125,7 @@ class LauncherFactoryTests {
 		// @formatter:off
 		var ids = roots.stream()
 				.map(TestIdentifier::getUniqueId)
-				.collect(toList());
+				.toList();
 		// @formatter:on
 
 		assertThat(ids).containsOnly("[engine:junit-vintage]", "[engine:junit-jupiter]",
@@ -134,7 +148,7 @@ class LauncherFactoryTests {
 		// @formatter:off
 		var ids = roots.stream()
 				.map(TestIdentifier::getUniqueId)
-				.collect(toList());
+				.toList();
 		// @formatter:on
 
 		assertThat(ids).containsOnly("[engine:junit-jupiter]");
@@ -298,7 +312,8 @@ class LauncherFactoryTests {
 					.addTestEngines(engine) //
 					.build();
 			var launcher = LauncherFactory.create(config);
-			var request = request().build();
+			var request = request().configurationParameter(LauncherConstants.STACKTRACE_PRUNING_ENABLED_PROPERTY_NAME,
+				"false").build();
 
 			AtomicReference<TestExecutionResult> result = new AtomicReference<>();
 			launcher.execute(request, new TestExecutionListener() {
@@ -359,7 +374,7 @@ class LauncherFactoryTests {
 		// @formatter:on
 	}
 
-	@SuppressWarnings("NewClassNamingConvention")
+	@SuppressWarnings({ "NewClassNamingConvention", "JUnitMalformedDeclaration" })
 	public static class JUnit4Example {
 
 		@org.junit.Test
@@ -368,7 +383,7 @@ class LauncherFactoryTests {
 
 	}
 
-	@SuppressWarnings("NewClassNamingConvention")
+	@SuppressWarnings({ "NewClassNamingConvention", "JUnitMalformedDeclaration" })
 	static class JUnit5Example {
 
 		@Tag("test-post-discovery")

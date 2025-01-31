@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,21 +11,28 @@
 package org.junit.jupiter.engine.descriptor;
 
 import static org.apiguardian.api.API.Status.INTERNAL;
+import static org.junit.jupiter.api.parallel.ResourceLockTarget.CHILDREN;
 import static org.junit.jupiter.engine.descriptor.DisplayNameUtils.determineDisplayNameForMethod;
+import static org.junit.jupiter.engine.descriptor.ResourceLockAware.enclosingInstanceTypesDependentResourceLocksProviderEvaluator;
 import static org.junit.platform.commons.util.CollectionUtils.forEachInReverseOrder;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestWatcher;
+import org.junit.jupiter.api.parallel.ResourceLocksProvider;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
 import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext;
+import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
 import org.junit.platform.commons.util.ClassUtils;
@@ -36,7 +43,6 @@ import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.MethodSource;
-import org.junit.platform.engine.support.hierarchical.ExclusiveResource;
 
 /**
  * Base class for {@link TestDescriptor TestDescriptors} based on Java methods.
@@ -44,7 +50,7 @@ import org.junit.platform.engine.support.hierarchical.ExclusiveResource;
  * @since 5.0
  */
 @API(status = INTERNAL, since = "5.0")
-public abstract class MethodBasedTestDescriptor extends JupiterTestDescriptor {
+public abstract class MethodBasedTestDescriptor extends JupiterTestDescriptor implements ResourceLockAware {
 
 	private static final Logger logger = LoggerFactory.getLogger(MethodBasedTestDescriptor.class);
 
@@ -57,9 +63,9 @@ public abstract class MethodBasedTestDescriptor extends JupiterTestDescriptor {
 	private final Set<TestTag> tags;
 
 	MethodBasedTestDescriptor(UniqueId uniqueId, Class<?> testClass, Method testMethod,
-			JupiterConfiguration configuration) {
-		this(uniqueId, determineDisplayNameForMethod(testClass, testMethod, configuration), testClass, testMethod,
-			configuration);
+			Supplier<List<Class<?>>> enclosingInstanceTypes, JupiterConfiguration configuration) {
+		this(uniqueId, determineDisplayNameForMethod(enclosingInstanceTypes, testClass, testMethod, configuration),
+			testClass, testMethod, configuration);
 	}
 
 	MethodBasedTestDescriptor(UniqueId uniqueId, String displayName, Class<?> testClass, Method testMethod,
@@ -80,8 +86,32 @@ public abstract class MethodBasedTestDescriptor extends JupiterTestDescriptor {
 	}
 
 	@Override
-	public Set<ExclusiveResource> getExclusiveResources() {
-		return getExclusiveResourcesFromAnnotation(getTestMethod());
+	public ExclusiveResourceCollector getExclusiveResourceCollector() {
+		// There's no need to cache this as this method should only be called once
+		ExclusiveResourceCollector collector = ExclusiveResourceCollector.from(getTestMethod());
+
+		if (collector.getStaticResourcesFor(CHILDREN).findAny().isPresent()) {
+			String message = "'ResourceLockTarget.CHILDREN' is not supported for methods." + //
+					" Invalid method: " + getTestMethod();
+			throw new JUnitException(message);
+		}
+
+		return collector;
+	}
+
+	@Override
+	public Function<ResourceLocksProvider, Set<ResourceLocksProvider.Lock>> getResourceLocksProviderEvaluator() {
+		return enclosingInstanceTypesDependentResourceLocksProviderEvaluator(this::getEnclosingTestClasses,
+			(provider, enclosingInstanceTypes) -> provider.provideForMethod(enclosingInstanceTypes, getTestClass(),
+				getTestMethod()));
+	}
+
+	private List<Class<?>> getEnclosingTestClasses() {
+		return getParent() //
+				.filter(ClassBasedTestDescriptor.class::isInstance) //
+				.map(ClassBasedTestDescriptor.class::cast) //
+				.map(ClassBasedTestDescriptor::getEnclosingTestClasses) //
+				.orElseGet(Collections::emptyList);
 	}
 
 	@Override

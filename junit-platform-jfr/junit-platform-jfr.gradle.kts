@@ -10,6 +10,12 @@ dependencies {
 
 	compileOnlyApi(libs.apiguardian)
 
+	if (java.toolchain.implementation.orNull == JvmImplementation.J9) {
+		compileOnly(libs.jfrPolyfill) {
+			because("OpenJ9 does not include JFR")
+		}
+	}
+
 	osgiVerification(projects.junitJupiterEngine)
 	osgiVerification(projects.junitPlatformLauncher)
 }
@@ -21,11 +27,11 @@ javaLibrary {
 
 tasks {
 	compileJava {
-		javaCompiler.set(project.javaToolchains.compilerFor {
-			languageVersion.set(JavaLanguageVersion.of(8))
-		})
+		javaCompiler = project.javaToolchains.compilerFor {
+			languageVersion = JavaLanguageVersion.of(8)
+		}
 	}
 	compileModule {
-		options.release.set(11)
+		options.release = 11
 	}
 }

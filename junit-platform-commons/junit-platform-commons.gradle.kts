@@ -1,9 +1,9 @@
-import junitbuild.java.ExecJarAction
+import junitbuild.java.UpdateJarAction
 
 plugins {
 	id("junitbuild.java-library-conventions")
 	id("junitbuild.java-multi-release-sources")
-	id("junitbuild.java-repackage-jars")
+	id("junitbuild.native-image-properties")
 	`java-test-fixtures`
 }
 
@@ -18,10 +18,9 @@ dependencies {
 tasks.jar {
 	val release9ClassesDir = sourceSets.mainRelease9.get().output.classesDirs.singleFile
 	inputs.dir(release9ClassesDir).withPathSensitivity(PathSensitivity.RELATIVE)
-	doLast(objects.newInstance(ExecJarAction::class).apply {
-		javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+	doLast(objects.newInstance(UpdateJarAction::class).apply {
+		javaLauncher = javaToolchains.launcherFor(java.toolchain)
 		args.addAll(
-			"--update",
 			"--file", archiveFile.get().asFile.absolutePath,
 			"--release", "9",
 			"-C", release9ClassesDir.absolutePath, "."
@@ -31,6 +30,8 @@ tasks.jar {
 
 tasks.codeCoverageClassesJar {
 	exclude("org/junit/platform/commons/util/ModuleUtils.class")
+	exclude("org/junit/platform/commons/util/PackageNameUtils.class")
+	exclude("org/junit/platform/commons/util/ServiceLoaderUtils.class")
 }
 
 eclipse {
