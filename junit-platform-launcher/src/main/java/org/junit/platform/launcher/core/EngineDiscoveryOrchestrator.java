@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -75,8 +75,7 @@ public class EngineDiscoveryOrchestrator {
 	 * {@linkplain TestDescriptor#prune() prunes} the resulting test tree.
 	 */
 	public LauncherDiscoveryResult discover(LauncherDiscoveryRequest request, Phase phase) {
-		Map<TestEngine, TestDescriptor> result = discover(request, phase, UniqueId::forEngine);
-		return new LauncherDiscoveryResult(result, request.getConfigurationParameters());
+		return discover(request, phase, UniqueId::forEngine);
 	}
 
 	/**
@@ -94,17 +93,18 @@ public class EngineDiscoveryOrchestrator {
 	 * will not emit start or emit events for engines without tests.
 	 */
 	public LauncherDiscoveryResult discover(LauncherDiscoveryRequest request, Phase phase, UniqueId parentId) {
-		Map<TestEngine, TestDescriptor> testEngines = discover(request, phase, parentId::appendEngine);
-		LauncherDiscoveryResult result = new LauncherDiscoveryResult(testEngines, request.getConfigurationParameters());
+		LauncherDiscoveryResult result = discover(request, phase, parentId::appendEngine);
 		return result.withRetainedEngines(TestDescriptor::containsTests);
 	}
 
-	private Map<TestEngine, TestDescriptor> discover(LauncherDiscoveryRequest request, Phase phase,
+	private LauncherDiscoveryResult discover(LauncherDiscoveryRequest request, Phase phase,
 			Function<String, UniqueId> uniqueIdCreator) {
 		LauncherDiscoveryListener listener = getLauncherDiscoveryListener(request);
 		listener.launcherDiscoveryStarted(request);
 		try {
-			return discoverSafely(request, phase, listener, uniqueIdCreator);
+			Map<TestEngine, TestDescriptor> testEngines = discoverSafely(request, phase, listener, uniqueIdCreator);
+			return new LauncherDiscoveryResult(testEngines, request.getConfigurationParameters(),
+				request.getOutputDirectoryProvider());
 		}
 		finally {
 			listener.launcherDiscoveryFinished(request);
@@ -156,8 +156,14 @@ public class EngineDiscoveryOrchestrator {
 		}
 		catch (Throwable throwable) {
 			UnrecoverableExceptions.rethrowIfUnrecoverable(throwable);
-			String message = String.format("TestEngine with ID '%s' failed to discover tests", testEngine.getId());
-			JUnitException cause = new JUnitException(message, throwable);
+			JUnitException cause = null;
+			if (throwable instanceof LinkageError) {
+				cause = ClasspathAlignmentChecker.check((LinkageError) throwable).orElse(null);
+			}
+			if (cause == null) {
+				String message = String.format("TestEngine with ID '%s' failed to discover tests", testEngine.getId());
+				cause = new JUnitException(message, throwable);
+			}
 			listener.engineDiscoveryFinished(uniqueEngineId, EngineDiscoveryResult.failed(cause));
 			return new EngineDiscoveryErrorDescriptor(uniqueEngineId, testEngine, cause);
 		}

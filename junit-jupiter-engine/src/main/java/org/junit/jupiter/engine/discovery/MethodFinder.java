@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -15,8 +15,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.junit.platform.commons.support.ReflectionSupport;
 import org.junit.platform.commons.util.Preconditions;
-import org.junit.platform.commons.util.ReflectionUtils;
 
 /**
  * @since 5.0
@@ -34,7 +34,7 @@ class MethodFinder {
 
 		String methodName = matcher.group(1);
 		String parameterTypeNames = matcher.group(2);
-		return ReflectionUtils.findMethod(clazz, methodName, parameterTypeNames);
+		return ReflectionSupport.findMethod(clazz, methodName, parameterTypeNames);
 	}
 
 }

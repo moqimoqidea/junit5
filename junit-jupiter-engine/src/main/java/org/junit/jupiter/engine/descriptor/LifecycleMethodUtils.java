@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,8 +10,8 @@
 
 package org.junit.jupiter.engine.descriptor;
 
-import static org.junit.platform.commons.util.AnnotationUtils.findAnnotatedMethods;
-import static org.junit.platform.commons.util.ReflectionUtils.returnsVoid;
+import static org.junit.platform.commons.support.AnnotationSupport.findAnnotatedMethods;
+import static org.junit.platform.commons.util.ReflectionUtils.returnsPrimitiveVoid;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -22,8 +22,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.platform.commons.JUnitException;
-import org.junit.platform.commons.util.ReflectionUtils;
-import org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode;
+import org.junit.platform.commons.support.HierarchyTraversalMode;
+import org.junit.platform.commons.support.ModifierSupport;
 
 /**
  * Collection of utilities for working with test lifecycle methods.
@@ -61,7 +61,6 @@ final class LifecycleMethodUtils {
 		if (requireStatic) {
 			methods.forEach(method -> assertStatic(annotationType, method));
 		}
-		methods.forEach(method -> assertNonPrivate(annotationType, method));
 		return methods;
 	}
 
@@ -69,10 +68,7 @@ final class LifecycleMethodUtils {
 			Class<? extends Annotation> annotationType, HierarchyTraversalMode traversalMode) {
 
 		List<Method> methods = findMethodsAndCheckVoidReturnType(testClass, annotationType, traversalMode);
-		methods.forEach(method -> {
-			assertNonStatic(annotationType, method);
-			assertNonPrivate(annotationType, method);
-		});
+		methods.forEach(method -> assertNonStatic(annotationType, method));
 		return methods;
 	}
 
@@ -85,7 +81,7 @@ final class LifecycleMethodUtils {
 	}
 
 	private static void assertStatic(Class<? extends Annotation> annotationType, Method method) {
-		if (ReflectionUtils.isNotStatic(method)) {
+		if (ModifierSupport.isNotStatic(method)) {
 			throw new JUnitException(String.format(
 				"@%s method '%s' must be static unless the test class is annotated with @TestInstance(Lifecycle.PER_CLASS).",
 				annotationType.getSimpleName(), method.toGenericString()));
@@ -93,21 +89,14 @@ final class LifecycleMethodUtils {
 	}
 
 	private static void assertNonStatic(Class<? extends Annotation> annotationType, Method method) {
-		if (ReflectionUtils.isStatic(method)) {
+		if (ModifierSupport.isStatic(method)) {
 			throw new JUnitException(String.format("@%s method '%s' must not be static.",
 				annotationType.getSimpleName(), method.toGenericString()));
 		}
 	}
 
-	private static void assertNonPrivate(Class<? extends Annotation> annotationType, Method method) {
-		if (ReflectionUtils.isPrivate(method)) {
-			throw new JUnitException(String.format("@%s method '%s' must not be private.",
-				annotationType.getSimpleName(), method.toGenericString()));
-		}
-	}
-
 	private static void assertVoid(Class<? extends Annotation> annotationType, Method method) {
-		if (!returnsVoid(method)) {
+		if (!returnsPrimitiveVoid(method)) {
 			throw new JUnitException(String.format("@%s method '%s' must not return a value.",
 				annotationType.getSimpleName(), method.toGenericString()));
 		}

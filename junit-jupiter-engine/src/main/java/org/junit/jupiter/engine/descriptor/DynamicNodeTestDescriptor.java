@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -12,7 +12,6 @@ package org.junit.jupiter.engine.descriptor;
 
 import org.junit.jupiter.api.DynamicNode;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
-import org.junit.jupiter.engine.execution.DefaultExecutableInvoker;
 import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestSource;
@@ -46,7 +45,7 @@ abstract class DynamicNodeTestDescriptor extends JupiterTestDescriptor {
 	@Override
 	public JupiterEngineExecutionContext prepare(JupiterEngineExecutionContext context) {
 		DynamicExtensionContext extensionContext = new DynamicExtensionContext(context.getExtensionContext(),
-			context.getExecutionListener(), this, context.getConfiguration(), new DefaultExecutableInvoker(context));
+			context.getExecutionListener(), this, context.getConfiguration(), context.getExtensionRegistry());
 		// @formatter:off
 		return context.extend()
 				.withExtensionContext(extensionContext)

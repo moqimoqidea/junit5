@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -17,7 +17,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.DynamicContainer.dynamicContainer;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
-import static org.junit.platform.commons.util.ReflectionUtils.findMethods;
+import static org.junit.platform.commons.support.HierarchyTraversalMode.TOP_DOWN;
+import static org.junit.platform.commons.support.ReflectionSupport.findMethods;
 import static org.junit.platform.commons.util.ReflectionUtils.getFullyQualifiedMethodName;
 
 import java.io.File;
@@ -78,7 +79,7 @@ class ConsoleDetailsTests {
 		// String containerName = containerClass.getSimpleName();
 		List<DynamicNode> nodes = new ArrayList<>();
 		Map<Details, List<DynamicTest>> map = new EnumMap<>(Details.class);
-		for (var method : findMethods(containerClass, m -> m.isAnnotationPresent(Test.class))) {
+		for (var method : findMethods(containerClass, m -> m.isAnnotationPresent(Test.class), TOP_DOWN)) {
 			var methodName = method.getName();
 			var types = method.getParameterTypes();
 			for (var details : Details.values()) {
@@ -108,6 +109,7 @@ class ConsoleDetailsTests {
 		return nodes;
 	}
 
+	@SuppressWarnings("JUnitMalformedDeclaration")
 	@DisplayName("Basic")
 	static class BasicTestCase {
 
@@ -122,6 +124,7 @@ class ConsoleDetailsTests {
 
 	}
 
+	@SuppressWarnings("JUnitMalformedDeclaration")
 	@DisplayName("Skip")
 	static class SkipTestCase {
 
@@ -137,6 +140,7 @@ class ConsoleDetailsTests {
 
 	}
 
+	@SuppressWarnings("JUnitMalformedDeclaration")
 	@DisplayName("Fail")
 	static class FailTestCase {
 
@@ -152,6 +156,7 @@ class ConsoleDetailsTests {
 
 	}
 
+	@SuppressWarnings("JUnitMalformedDeclaration")
 	@DisplayName("Report")
 	static class ReportTestCase {
 

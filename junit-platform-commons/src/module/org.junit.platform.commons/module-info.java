@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -36,6 +36,8 @@ module org.junit.platform.commons {
 			org.junit.platform.testkit,
 			org.junit.vintage.engine;
 	exports org.junit.platform.commons.support;
+	exports org.junit.platform.commons.support.conversion;
+	exports org.junit.platform.commons.support.scanning;
 	exports org.junit.platform.commons.util to
 			org.junit.jupiter.api,
 			org.junit.jupiter.engine,
@@ -51,4 +53,5 @@ module org.junit.platform.commons {
 			org.junit.platform.suite.engine,
 			org.junit.platform.testkit,
 			org.junit.vintage.engine;
+	uses org.junit.platform.commons.support.scanning.ClasspathScanner;
 }

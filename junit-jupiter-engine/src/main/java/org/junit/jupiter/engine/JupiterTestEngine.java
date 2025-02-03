@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -63,8 +63,8 @@ public final class JupiterTestEngine extends HierarchicalTestEngine<JupiterEngin
 
 	@Override
 	public TestDescriptor discover(EngineDiscoveryRequest discoveryRequest, UniqueId uniqueId) {
-		JupiterConfiguration configuration = new CachingJupiterConfiguration(
-			new DefaultJupiterConfiguration(discoveryRequest.getConfigurationParameters()));
+		JupiterConfiguration configuration = new CachingJupiterConfiguration(new DefaultJupiterConfiguration(
+			discoveryRequest.getConfigurationParameters(), discoveryRequest.getOutputDirectoryProvider()));
 		JupiterEngineDescriptor engineDescriptor = new JupiterEngineDescriptor(uniqueId, configuration);
 		new DiscoverySelectorResolver().resolveSelectors(discoveryRequest, engineDescriptor);
 		return engineDescriptor;

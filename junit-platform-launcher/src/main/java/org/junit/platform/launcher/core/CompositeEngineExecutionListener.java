@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -21,6 +21,7 @@ import org.junit.platform.commons.util.UnrecoverableExceptions;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 
 class CompositeEngineExecutionListener implements EngineExecutionListener {
@@ -65,6 +66,13 @@ class CompositeEngineExecutionListener implements EngineExecutionListener {
 		notifyEach(engineExecutionListeners, IterationOrder.ORIGINAL,
 			listener -> listener.reportingEntryPublished(testDescriptor, entry),
 			() -> "reportingEntryPublished(" + testDescriptor + ", " + entry + ")");
+	}
+
+	@Override
+	public void fileEntryPublished(TestDescriptor testDescriptor, FileEntry file) {
+		notifyEach(engineExecutionListeners, IterationOrder.ORIGINAL,
+			listener -> listener.fileEntryPublished(testDescriptor, file),
+			() -> "fileEntryPublished(" + testDescriptor + ", " + file + ")");
 	}
 
 	private static <T extends EngineExecutionListener> void notifyEach(List<T> listeners, IterationOrder iterationOrder,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -17,10 +17,13 @@ import static org.apiguardian.api.API.Status.INTERNAL;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apiguardian.api.API;
 import org.junit.platform.commons.logging.Logger;
 import org.junit.platform.commons.logging.LoggerFactory;
+import org.junit.platform.commons.support.Resource;
+import org.junit.platform.commons.support.scanning.ClassFilter;
 
 /**
  * Collection of utilities for working with {@code java.lang.Module}
@@ -94,6 +97,25 @@ public class ModuleUtils {
 		Preconditions.notNull(filter, "Class filter must not be null");
 
 		logger.config(() -> "Basic version of findAllClassesInModule() always returns an empty list!");
+		return emptyList();
+	}
+
+	/**
+	 * Find all resources for the given module name.
+	 *
+	 * @param moduleName the name of the module to scan; never {@code null} or
+	 * <em>empty</em>
+	 * @param filter the class filter to apply; never {@code null}
+	 * @return an immutable list of all such resources found; never {@code null}
+	 * but potentially empty
+	 * @since 1.11
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static List<Resource> findAllResourcesInModule(String moduleName, Predicate<Resource> filter) {
+		Preconditions.notBlank(moduleName, "Module name must not be null or empty");
+		Preconditions.notNull(filter, "Resource filter must not be null");
+
+		logger.config(() -> "Basic version of findAllResourcesInModule() always returns an empty list!");
 		return emptyList();
 	}
 

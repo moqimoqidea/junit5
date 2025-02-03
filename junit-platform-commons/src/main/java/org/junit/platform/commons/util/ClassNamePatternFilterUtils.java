@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -16,6 +16,7 @@ import static org.apiguardian.api.API.Status.INTERNAL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,7 +41,9 @@ public class ClassNamePatternFilterUtils {
 		/* no-op */
 	}
 
-	public static final String DEACTIVATE_ALL_PATTERN = "*";
+	public static final String ALL_PATTERN = "*";
+
+	public static final String BLANK = "";
 
 	/**
 	 * Create a {@link Predicate} that can be used to exclude (i.e., filter out)
@@ -50,21 +53,67 @@ public class ClassNamePatternFilterUtils {
 	 * @param patterns a comma-separated list of patterns
 	 */
 	public static <T> Predicate<T> excludeMatchingClasses(String patterns) {
+		return matchingClasses(patterns, object -> object.getClass().getName(), FilterType.EXCLUDE);
+	}
+
+	/**
+	 * Create a {@link Predicate} that can be used to exclude (i.e., filter out)
+	 * fully qualified class names matching any of the supplied patterns.
+	 *
+	 * @param patterns a comma-separated list of patterns
+	 */
+	public static Predicate<String> excludeMatchingClassNames(String patterns) {
+		return matchingClasses(patterns, Function.identity(), FilterType.EXCLUDE);
+	}
+
+	/**
+	 * Create a {@link Predicate} that can be used to include (i.e., filter in)
+	 * objects of type {@code T} whose fully qualified class names match any of
+	 * the supplied patterns.
+	 *
+	 * @param patterns a comma-separated list of patterns
+	 */
+	public static <T> Predicate<T> includeMatchingClasses(String patterns) {
+		return matchingClasses(patterns, object -> object.getClass().getName(), FilterType.INCLUDE);
+	}
+
+	/**
+	 * Create a {@link Predicate} that can be used to include (i.e., filter in)
+	 * fully qualified class names matching any of the supplied patterns.
+	 *
+	 * @param patterns a comma-separated list of patterns
+	 */
+	public static Predicate<String> includeMatchingClassNames(String patterns) {
+		return matchingClasses(patterns, Function.identity(), FilterType.INCLUDE);
+	}
+
+	private enum FilterType {
+		INCLUDE, EXCLUDE
+	}
+
+	private static <T> Predicate<T> matchingClasses(String patterns, Function<T, String> classNameProvider,
+			FilterType type) {
 		// @formatter:off
 		return Optional.ofNullable(patterns)
 				.filter(StringUtils::isNotBlank)
 				.map(String::trim)
-				.map(ClassNamePatternFilterUtils::<T>createPredicateFromPatterns)
-				.orElse(object -> true);
+				.map(trimmedPatterns -> createPredicateFromPatterns(trimmedPatterns, classNameProvider, type))
+				.orElse(type == FilterType.EXCLUDE ? __ -> true : __ -> false);
 		// @formatter:on
 	}
 
-	private static <T> Predicate<T> createPredicateFromPatterns(String patterns) {
-		if (DEACTIVATE_ALL_PATTERN.equals(patterns)) {
-			return object -> false;
+	private static <T> Predicate<T> createPredicateFromPatterns(String patterns, Function<T, String> classNameProvider,
+			FilterType type) {
+		if (ALL_PATTERN.equals(patterns)) {
+			return type == FilterType.INCLUDE ? __ -> true : __ -> false;
 		}
+
 		List<Pattern> patternList = convertToRegularExpressions(patterns);
-		return object -> patternList.stream().noneMatch(it -> it.matcher(object.getClass().getName()).matches());
+		return object -> {
+			boolean isMatchingAnyPattern = patternList.stream().anyMatch(
+				pattern -> pattern.matcher(classNameProvider.apply(object)).matches());
+			return (type == FilterType.INCLUDE) == isMatchingAnyPattern;
+		};
 	}
 
 	private static List<Pattern> convertToRegularExpressions(String patterns) {

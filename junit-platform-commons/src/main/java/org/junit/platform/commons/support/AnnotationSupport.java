@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,6 +10,7 @@
 
 package org.junit.platform.commons.support;
 
+import static org.apiguardian.api.API.Status.DEPRECATED;
 import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.MAINTAINED;
 
@@ -18,6 +19,7 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -54,6 +56,10 @@ public final class AnnotationSupport {
 	 * <em>present</em> or <em>meta-present</em> on the supplied optional
 	 * {@code element}.
 	 *
+	 * <p><strong>Note:</strong> This method does not find repeatable annotations.
+	 * To check for repeatable annotations, use {@link #findRepeatableAnnotations(Optional, Class)}
+	 * and verify that the returned list is not empty.
+	 *
 	 * @param element an {@link Optional} containing the element on which to
 	 * search for the annotation; may be {@code null} or <em>empty</em>
 	 * @param annotationType the annotation type to search for; never {@code null}
@@ -61,6 +67,7 @@ public final class AnnotationSupport {
 	 * @since 1.3
 	 * @see #isAnnotated(AnnotatedElement, Class)
 	 * @see #findAnnotation(Optional, Class)
+	 * @see #findRepeatableAnnotations(Optional, Class)
 	 */
 	@API(status = MAINTAINED, since = "1.3")
 	public static boolean isAnnotated(Optional<? extends AnnotatedElement> element,
@@ -74,12 +81,17 @@ public final class AnnotationSupport {
 	 * <em>present</em> or <em>meta-present</em> on the supplied
 	 * {@code element}.
 	 *
+	 * <p><strong>Note:</strong> This method does not find repeatable annotations.
+	 * To check for repeatable annotations, use {@link #findRepeatableAnnotations(AnnotatedElement, Class)}
+	 * and verify that the returned list is not empty.
+	 *
 	 * @param element the element on which to search for the annotation; may be
 	 * {@code null}
 	 * @param annotationType the annotation type to search for; never {@code null}
 	 * @return {@code true} if the annotation is present or meta-present
 	 * @see #isAnnotated(Optional, Class)
 	 * @see #findAnnotation(AnnotatedElement, Class)
+	 * @see #findRepeatableAnnotations(AnnotatedElement, Class)
 	 */
 	public static boolean isAnnotated(AnnotatedElement element, Class<? extends Annotation> annotationType) {
 		return AnnotationUtils.isAnnotated(element, annotationType);
@@ -153,8 +165,14 @@ public final class AnnotationSupport {
 	 * @since 1.8
 	 * @see SearchOption
 	 * @see #findAnnotation(AnnotatedElement, Class)
+	 * @deprecated Use {@link #findAnnotation(Class, Class, List)}
+	 * (for {@code SearchOption.DEFAULT}) or
+	 * {@link #findAnnotation(Class, Class, List)} (for
+	 * {@code SearchOption.INCLUDE_ENCLOSING_CLASSES}) instead
 	 */
-	@API(status = EXPERIMENTAL, since = "1.8")
+	@Deprecated
+	@API(status = DEPRECATED, since = "1.12")
+	@SuppressWarnings("deprecation")
 	public static <A extends Annotation> Optional<A> findAnnotation(Class<?> clazz, Class<A> annotationType,
 			SearchOption searchOption) {
 
@@ -162,6 +180,56 @@ public final class AnnotationSupport {
 
 		return AnnotationUtils.findAnnotation(clazz, annotationType,
 			searchOption == SearchOption.INCLUDE_ENCLOSING_CLASSES);
+	}
+
+	/**
+	 * Find the first annotation of the specified type that is either
+	 * <em>directly present</em>, <em>meta-present</em>, or <em>indirectly
+	 * present</em> on the supplied class.
+	 *
+	 * <p>If the annotation is neither <em>directly present</em> nor <em>meta-present</em>
+	 * on the class, this method will additionally search on interfaces implemented
+	 * by the class before searching for an annotation that is <em>indirectly present</em>
+	 * on the class (i.e., within the class inheritance hierarchy).
+	 *
+	 * <p>If the annotation still has not been found, this method will optionally
+	 * search recursively through the supplied enclosing instance types, starting
+	 * at the innermost enclosing class (the last one in the supplied list of
+	 * {@code enclosingInstanceTypes}).
+	 *
+	 * @implNote The classes supplied as {@code enclosingInstanceTypes} may
+	 * differ from the classes returned from invocations of
+	 * {@link Class#getEnclosingClass()} &mdash; for example, when a nested test
+	 * class is inherited from a superclass.
+	 *
+	 * @param <A> the annotation type
+	 * @param clazz the class on which to search for the annotation; may be {@code null}
+	 * @param annotationType the annotation type to search for; never {@code null}
+	 * @param enclosingInstanceTypes the runtime types of the enclosing
+	 * instances for the class, ordered from outermost to innermost,
+	 * excluding {@code clazz}; never {@code null}
+	 * @return an {@code Optional} containing the annotation; never {@code null} but
+	 * potentially empty if {@code clazz} is not an inner class
+	 * @since 1.12
+	 * @see #findAnnotation(AnnotatedElement, Class)
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static <A extends Annotation> Optional<A> findAnnotation(Class<?> clazz, Class<A> annotationType,
+			List<Class<?>> enclosingInstanceTypes) {
+
+		Preconditions.notNull(enclosingInstanceTypes, "enclosingInstanceTypes must not be null");
+
+		Optional<A> annotation = findAnnotation(clazz, annotationType);
+		if (!annotation.isPresent()) {
+			ListIterator<Class<?>> iterator = enclosingInstanceTypes.listIterator(enclosingInstanceTypes.size());
+			while (iterator.hasPrevious()) {
+				annotation = findAnnotation(iterator.previous(), annotationType);
+				if (annotation.isPresent()) {
+					break;
+				}
+			}
+		}
+		return annotation;
 	}
 
 	/**
@@ -262,8 +330,8 @@ public final class AnnotationSupport {
 	}
 
 	/**
-	 * Find all {@linkplain Field fields} of the supplied class or interface
-	 * that are annotated or <em>meta-annotated</em> with the specified
+	 * Find all distinct {@linkplain Field fields} of the supplied class or
+	 * interface that are annotated or <em>meta-annotated</em> with the specified
 	 * {@code annotationType}, using top-down search semantics within the type
 	 * hierarchy.
 	 *
@@ -285,12 +353,41 @@ public final class AnnotationSupport {
 	 */
 	@API(status = MAINTAINED, since = "1.4")
 	public static List<Field> findAnnotatedFields(Class<?> clazz, Class<? extends Annotation> annotationType) {
-		return AnnotationUtils.findAnnotatedFields(clazz, annotationType, field -> true);
+		return findAnnotatedFields(clazz, annotationType, field -> true);
 	}
 
 	/**
-	 * Find all {@linkplain Field fields} of the supplied class or interface
-	 * that are annotated or <em>meta-annotated</em> with the specified
+	 * Find all distinct {@linkplain Field fields} of the supplied class or
+	 * interface that are annotated or <em>meta-annotated</em> with the specified
+	 * {@code annotationType} and match the specified {@code predicate}, using
+	 * top-down search semantics within the type hierarchy.
+	 *
+	 * <p>Fields declared in the same class or interface will be ordered using
+	 * an algorithm that is deterministic but intentionally nonobvious.
+	 *
+	 * <p>The results will not contain fields that are <em>hidden</em> or
+	 * {@linkplain Field#isSynthetic() synthetic}.
+	 *
+	 * @param clazz the class or interface in which to find the fields; never {@code null}
+	 * @param annotationType the annotation type to search for; never {@code null}
+	 * @param predicate the field filter; never {@code null}
+	 * @return the list of all such fields found; neither {@code null} nor mutable
+	 * @since 1.10
+	 * @see Class#getDeclaredFields()
+	 * @see #findPublicAnnotatedFields(Class, Class, Class)
+	 * @see #findAnnotatedFields(Class, Class, Predicate, HierarchyTraversalMode)
+	 * @see ReflectionSupport#findFields(Class, Predicate, HierarchyTraversalMode)
+	 * @see ReflectionSupport#tryToReadFieldValue(Field, Object)
+	 */
+	@API(status = MAINTAINED, since = "1.10")
+	public static List<Field> findAnnotatedFields(Class<?> clazz, Class<? extends Annotation> annotationType,
+			Predicate<Field> predicate) {
+		return AnnotationUtils.findAnnotatedFields(clazz, annotationType, predicate);
+	}
+
+	/**
+	 * Find all distinct {@linkplain Field fields} of the supplied class or
+	 * interface that are annotated or <em>meta-annotated</em> with the specified
 	 * {@code annotationType} and match the specified {@code predicate}, using
 	 * the supplied hierarchy traversal mode.
 	 *
@@ -467,8 +564,8 @@ public final class AnnotationSupport {
 	}
 
 	/**
-	 * Find all {@linkplain Method methods} of the supplied class or interface
-	 * that are annotated or <em>meta-annotated</em> with the specified
+	 * Find all distinct {@linkplain Method methods} of the supplied class or
+	 * interface that are annotated or <em>meta-annotated</em> with the specified
 	 * {@code annotationType}.
 	 *
 	 * @param clazz the class or interface in which to find the methods; never {@code null}

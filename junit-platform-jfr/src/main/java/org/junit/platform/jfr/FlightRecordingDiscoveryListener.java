@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,7 +10,7 @@
 
 package org.junit.platform.jfr;
 
-import static org.apiguardian.api.API.Status.EXPERIMENTAL;
+import static org.apiguardian.api.API.Status.STABLE;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,7 +36,7 @@ import org.junit.platform.launcher.LauncherDiscoveryRequest;
  * @since 1.8
  * @see <a href="https://openjdk.java.net/jeps/328">JEP 328: Flight Recorder</a>
  */
-@API(status = EXPERIMENTAL, since = "1.8")
+@API(status = STABLE, since = "1.11")
 public class FlightRecordingDiscoveryListener implements LauncherDiscoveryListener {
 
 	private final AtomicReference<LauncherDiscoveryEvent> launcherDiscoveryEvent = new AtomicReference<>();

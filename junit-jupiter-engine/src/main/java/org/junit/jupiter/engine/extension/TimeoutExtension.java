@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -44,6 +44,11 @@ class TimeoutExtension implements BeforeAllCallback, BeforeEachCallback, Invocat
 	private static final String ENABLED_MODE_VALUE = "enabled";
 	private static final String DISABLED_MODE_VALUE = "disabled";
 	private static final String DISABLED_ON_DEBUG_MODE_VALUE = "disabled_on_debug";
+
+	@Override
+	public ExtensionContextScope getTestInstantiationExtensionContextScope(ExtensionContext rootContext) {
+		return ExtensionContextScope.TEST_METHOD;
+	}
 
 	@Override
 	public void beforeAll(ExtensionContext context) {
@@ -177,8 +182,8 @@ class TimeoutExtension implements BeforeAllCallback, BeforeEachCallback, Invocat
 
 		ThreadMode threadMode = resolveTimeoutThreadMode(extensionContext);
 		return new TimeoutInvocationFactory(extensionContext.getRoot().getStore(NAMESPACE)).create(threadMode,
-			new TimeoutInvocationParameters<>(invocation, timeout,
-				() -> describe(invocationContext, extensionContext)));
+			new TimeoutInvocationParameters<>(invocation, timeout, () -> describe(invocationContext, extensionContext),
+				PreInterruptCallbackInvocationFactory.create((ExtensionContextInternal) extensionContext)));
 	}
 
 	private ThreadMode resolveTimeoutThreadMode(ExtensionContext extensionContext) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -28,6 +28,7 @@ import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.DemoMethodTestDescriptor;
 import org.mockito.InOrder;
@@ -169,6 +170,11 @@ class CompositeEngineExecutionListenerTests {
 
 		@Override
 		public void reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry) {
+			throw new RuntimeException("failed to invoke listener");
+		}
+
+		@Override
+		public void fileEntryPublished(TestDescriptor testDescriptor, FileEntry file) {
 			throw new RuntimeException("failed to invoke listener");
 		}
 	}

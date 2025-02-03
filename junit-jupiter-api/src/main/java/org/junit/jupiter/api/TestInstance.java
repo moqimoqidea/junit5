@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -20,6 +20,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import org.apiguardian.api.API;
+import org.junit.jupiter.api.parallel.Execution;
 
 /**
  * {@code @TestInstance} is a type-level annotation that is used to configure
@@ -51,15 +52,22 @@ import org.apiguardian.api.API;
  * <li>Declaration of {@code @BeforeAll} and {@code @AfterAll} on interface
  * {@code default} methods.</li>
  * <li>Simplified declaration of non-static {@code @BeforeAll} and {@code @AfterAll}
- * methods in test classes implemented with the Kotlin programming language.</li>
+ * lifecycle methods as well as {@code @MethodSource} factory methods in test classes
+ * implemented with the Kotlin programming language.</li>
  * </ul>
  *
  * <p>{@code @TestInstance} may also be used as a meta-annotation in order to
  * create a custom <em>composed annotation</em> that inherits the semantics
  * of {@code @TestInstance}.
  *
+ * <h2>Parallel Execution</h2>
+ * <p>Using the {@link Lifecycle#PER_CLASS PER_CLASS} lifecycle mode disables
+ * parallel execution unless the test class or test method is annotated with
+ * {@link Execution @Execution(CONCURRENT)}.
+ *
  * @since 5.0
  * @see Nested @Nested
+ * @see Execution @Execution
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

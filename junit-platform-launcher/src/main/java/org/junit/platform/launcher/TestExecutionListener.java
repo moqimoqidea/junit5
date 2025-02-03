@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,11 +10,14 @@
 
 package org.junit.platform.launcher;
 
+import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.STABLE;
 
 import org.apiguardian.api.API;
+import org.junit.platform.commons.util.UnrecoverableExceptions;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.TestExecutionResult.Status;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 
 /**
@@ -29,6 +32,12 @@ import org.junit.platform.engine.reporting.ReportEntry;
  * for start events are called in registration order while methods for finish
  * events are called in reverse order. Test case execution won't start before
  * all {@link #executionStarted(TestIdentifier)} calls have returned.
+ *
+ * <p>If an exception is thrown by an implementation of a method of this
+ * interface, the exception will be caught and logged unless it is deemed
+ * {@linkplain UnrecoverableExceptions unrecoverable}. In consequence, a
+ * {@code TestExecutionListener} cannot cause test execution to fail or abort it
+ * early by throwing an exception.
  *
  * <p>JUnit provides two example implementations.
  *
@@ -177,4 +186,16 @@ public interface TestExecutionListener {
 	default void reportingEntryPublished(TestIdentifier testIdentifier, ReportEntry entry) {
 	}
 
+	/**
+	 * Called when a file or directory has been published for the supplied
+	 * {@link TestIdentifier}.
+	 *
+	 * <p>Can be called at any time during the execution of a test plan.
+	 *
+	 * @param testIdentifier describes the test or container to which the entry pertains
+	 * @param file the published {@code FileEntry}
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	default void fileEntryPublished(TestIdentifier testIdentifier, FileEntry file) {
+	}
 }

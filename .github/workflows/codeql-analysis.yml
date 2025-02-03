@@ -13,32 +13,38 @@ on:
   schedule:
     - cron: '0 19 * * 3'
 
+permissions: read-all
+
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GRADLE_ENTERPRISE_ACCESS_KEY }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
         language:
-          # - java # Currently broken because it doesn't support Kotlin 1.8.10, yet (https://github.com/github/codeql/discussions/11460#discussioncomment-4879731)
+          - java
           - javascript
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3
       with:
         languages: ${{ matrix.language }}
+        tools: linked
     - name: Build
       uses: ./.github/actions/run-gradle
       with:
+        encryptionKey: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
         arguments: |
-          --no-build-cache
-          -Dscan.tag.CodeQL
+          --no-build-cache \
+          -Dscan.tag.CodeQL \
           allMainClasses
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3
