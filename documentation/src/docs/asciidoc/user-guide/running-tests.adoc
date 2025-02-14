@@ -7,13 +7,11 @@
 [[running-tests-ide-intellij-idea]]
 ==== IntelliJ IDEA
 
-IntelliJ IDEA supports running tests on the JUnit Platform since version 2016.2. For
-details please see the
-https://blog.jetbrains.com/idea/2016/08/using-junit-5-in-intellij-idea/[post on the
-IntelliJ IDEA blog]. Note, however, that it is recommended to use IDEA 2017.3 or newer
-since these newer versions of IDEA will download the following JARs automatically based
-on the API version used in the project: `junit-platform-launcher`,
-`junit-jupiter-engine`, and `junit-vintage-engine`.
+IntelliJ IDEA supports running tests on the JUnit Platform since version 2016.2. For more
+information, please consult this https://jb.gg/junit-idea/[IntelliJ IDEA resource]. Note,
+however, that it is recommended to use IDEA 2017.3 or newer since more recent versions of
+IDEA download the following JARs automatically based on the API version used in the
+project: `junit-platform-launcher`, `junit-jupiter-engine`, and `junit-vintage-engine`.
 
 WARNING: IntelliJ IDEA releases prior to IDEA 2017.3 bundle specific versions of JUnit 5.
 Thus, if you want to use a newer version of JUnit Jupiter, execution of tests within the
@@ -122,13 +120,6 @@ your IDE has built-in support for JUnit 4.
 [[running-tests-build-gradle]]
 ==== Gradle
 
-[WARNING]
-.The JUnit Platform Gradle Plugin has been discontinued
-====
-The `junit-platform-gradle-plugin` developed by the JUnit team was deprecated in JUnit
-Platform 1.2 and discontinued in 1.3. Please switch to Gradle's standard `test` task.
-====
-
 Starting with https://docs.gradle.org/4.6/release-notes.html[version 4.6], Gradle provides
 https://docs.gradle.org/current/userguide/java_testing.html#using_junit5[native support]
 for executing tests on the JUnit Platform. To enable it, you need to specify
@@ -162,7 +153,24 @@ Please refer to the
 https://docs.gradle.org/current/userguide/java_plugin.html#sec:java_test[official Gradle documentation]
 for a comprehensive list of options.
 
-NOTE: See <<running-tests-build-spring-boot>> for details on how to override the version
+[[running-tests-build-gradle-bom]]
+===== Aligning dependency versions
+
+Unless you're using Spring Boot which defines its own way of managing dependencies, it is
+recommended to use the JUnit Platform BOM to align the versions of all JUnit 5 artifacts.
+
+[source,groovy,indent=0]
+[subs=attributes+]
+----
+dependencies {
+	testImplementation(platform("org.junit:junit-bom:{bom-version}"))
+}
+----
+
+Using the BOM allows you to omit the version when declaring dependencies on all artifacts
+with the `org.junit.platform`, `org.junit.jupiter`, and `org.junit.vintage` group IDs.
+
+TIP: See <<running-tests-build-spring-boot>> for details on how to override the version
 of JUnit used in your Spring Boot application.
 
 [[running-tests-build-gradle-config-params]]
@@ -197,7 +205,7 @@ on the dependency-aggregating JUnit Jupiter artifact similar to the following.
 [subs=attributes+]
 ----
 dependencies {
-	testImplementation("org.junit.jupiter:junit-jupiter:{jupiter-version}")
+	testImplementation("org.junit.jupiter:junit-jupiter:{jupiter-version}") // version can be omitted when using the BOM
 }
 ----
 
@@ -210,7 +218,7 @@ implementation similar to the following.
 ----
 dependencies {
 	testImplementation("junit:junit:{junit4-version}")
-	testRuntimeOnly("org.junit.vintage:junit-vintage-engine:{vintage-version}")
+	testRuntimeOnly("org.junit.vintage:junit-vintage-engine:{vintage-version}") // version can be omitted when using the BOM
 }
 ----
 
@@ -233,6 +241,8 @@ details).
 ----
 test {
 	systemProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager")
+	// Avoid overhead (see https://logging.apache.org/log4j/2.x/manual/jmx.html#enabling-jmx)
+	systemProperty("log4j2.disableJmx", "true")
 }
 ----
 
@@ -244,24 +254,23 @@ additional dependency to the runtime classpath.
 [[running-tests-build-maven]]
 ==== Maven
 
-Starting with https://issues.apache.org/jira/browse/SUREFIRE-1330[version 2.22.0], Maven
-Surefire and Maven Failsafe provide
+Maven Surefire and Maven Failsafe provide
 https://maven.apache.org/surefire/maven-surefire-plugin/examples/junit-platform.html[native support]
 for executing tests on the JUnit Platform. The `pom.xml` file in the
 `{junit5-jupiter-starter-maven}` project demonstrates how to use the Maven Surefire plugin
 and can serve as a starting point for configuring your Maven build.
 
 [WARNING]
-.Use Maven Surefire/Failsafe 3.0.0-M4 or later to avoid interoperability issues
+.Use recent version of Maven Surefire/Failsafe to avoid interoperability issues
 ====
-Maven Surefire/Failsafe 3.0.0-M4
-https://issues.apache.org/jira/browse/SUREFIRE-1585[introduced support] for aligning the
-version of the JUnit Platform Launcher it uses with the JUnit Platform version found on
-the test runtime classpath. Therefore, it is recommended to use version 3.0.0-M4 or later
-to avoid interoperability issues.
+To avoid interoperability issues, it is recommended to use a recent version of Maven
+Surefire/Failsafe (3.0.0 or later) because it automatically aligns the version of the
+JUnit Platform Launcher that is used with the JUnit Platform version found on the test
+runtime classpath.
 
-Alternatively, you can add a test dependency on the matching version of the JUnit Platform
-Launcher to your Maven build as follows.
+If you are using a version older than 3.0.0-M4, you can work around the missing alignment
+by adding a test dependency on the matching version of the JUnit Platform Launcher to your
+Maven build as follows.
 
 [source,xml]
 [subs=attributes+]
@@ -274,6 +283,31 @@ Launcher to your Maven build as follows.
 </dependency>
 ----
 ====
+
+[[running-tests-build-maven-bom]]
+===== Aligning dependency versions
+
+Unless you're using Spring Boot which defines its own way of managing dependencies, it is
+recommended to use the JUnit Platform BOM to align the versions of all JUnit 5 artifacts.
+
+[source,xml,indent=0]
+[subs=attributes+]
+----
+<dependencyManagement>
+	<dependencies>
+		<dependency>
+			<groupId>org.junit</groupId>
+			<artifactId>junit-bom</artifactId>
+			<version>{bom-version}</version>
+			<type>pom</type>
+			<scope>import</scope>
+		</dependency>
+	</dependencies>
+</dependencyManagement>
+----
+
+Using the BOM allows you to omit the version when declaring dependencies on all artifacts
+with the `org.junit.platform`, `org.junit.jupiter`, and `org.junit.vintage` group IDs.
 
 TIP: See <<running-tests-build-spring-boot>> for details on how to override the version
 of JUnit used in your Spring Boot application.
@@ -297,7 +331,7 @@ following.
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>{jupiter-version}</version>
+			<version>{jupiter-version}</version> <!-- can be omitted when using the BOM -->
 			<scope>test</scope>
 		</dependency>
 		<!-- ... -->
@@ -336,7 +370,7 @@ long as you configure `test` scoped dependencies on JUnit 4 and the JUnit Vintag
 		<dependency>
 			<groupId>org.junit.vintage</groupId>
 			<artifactId>junit-vintage-engine</artifactId>
-			<version>{vintage-version}</version>
+			<version>{vintage-version}</version> <!-- can be omitted when using the BOM -->
 			<scope>test</scope>
 		</dependency>
 		<!-- ... -->
@@ -586,19 +620,38 @@ The `{ConsoleLauncher}` is a command-line Java application that lets you launch 
 Platform from the console. For example, it can be used to run JUnit Vintage and JUnit
 Jupiter tests and print test execution results to the console.
 
-An executable `junit-platform-console-standalone-{platform-version}.jar` with all
-dependencies included is published in the {Maven_Central} repository under the
+An executable _Fat JAR_ (`junit-platform-console-standalone-{platform-version}.jar`) that
+contains the contents of all of its dependencies is published in the {Maven_Central}
+repository under the
 https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone[junit-platform-console-standalone]
-directory. It includes the following dependencies:
+directory. It contains the contents of the following artifacts:
 
 include::{standaloneConsoleLauncherShadowedArtifactsFile}[]
+
+[NOTE]
+====
+Since the `junit-platform-console-standalone` JAR contains the contents of all of its
+dependencies, its Maven POM does not declare any dependencies.
+
+Furthermore, it is not very likely that you would need to include a dependency on the
+`junit-platform-console-standalone` artifact in your project's Maven POM or Gradle build
+script. On the contrary, the executable `junit-platform-console-standalone` JAR is
+typically invoked directly from the command line or a shell script without a build script.
+
+If you need to declare dependencies in your build script on some of the artifacts
+contained in the `junit-platform-console-standalone` artifact, you should declare
+dependencies only on the JUnit artifacts that are used in your project. To simplify
+dependency management of JUnit artifacts in your build, you may wish to use the
+`junit-jupiter` aggregator artifact or `junit-bom`. See <<dependency-metadata>> for
+details.
+====
 
 You can https://docs.oracle.com/javase/tutorial/deployment/jar/run.html[run] the
 standalone `ConsoleLauncher` as shown below.
 
 [source,console,subs=attributes+]
 ----
-$ java -jar junit-platform-console-standalone-{platform-version}.jar <OPTIONS>
+$ java -jar junit-platform-console-standalone-{platform-version}.jar execute <OPTIONS>
 
 ├─ JUnit Vintage
 │  └─ example.JUnit4Tests
@@ -638,14 +691,37 @@ $ java -cp classes:testlib/* org.junit.platform.console.ConsoleLauncher <OPTIONS
 .Exit Code
 NOTE: The `{ConsoleLauncher}` exits with a status code of `1` if any containers or tests
 failed. If no tests are discovered and the `--fail-if-no-tests` command-line option is
-supplied, the `ConsoleLauncher` exits with a status code of `2`. Otherwise the exit code
+supplied, the `ConsoleLauncher` exits with a status code of `2`. Otherwise, the exit code
 is `0`.
 
 [[running-tests-console-launcher-options]]
-==== Options
+==== Subcommands and Options
+
+The `{ConsoleLauncher}` provides the following subcommands:
 
 ----
 include::{consoleLauncherOptionsFile}[]
+----
+
+[[running-tests-console-launcher-options-discovering-tests]]
+===== Discovering tests
+
+----
+include::{consoleLauncherDiscoverOptionsFile}[]
+----
+
+[[running-tests-console-launcher-options-executing-tests]]
+===== Executing tests
+
+----
+include::{consoleLauncherExecuteOptionsFile}[]
+----
+
+[[running-tests-console-launcher-options-listing-test-engines]]
+===== Listing test engines
+
+----
+include::{consoleLauncherEnginesOptionsFile}[]
 ----
 
 [[running-tests-console-launcher-argument-files]]
@@ -813,6 +889,38 @@ WARNING: Test classes and suites annotated with `@RunWith(JUnitPlatform.class)`
 documented in some IDEs). Such classes and suites can only be executed using JUnit 4
 infrastructure.
 
+[[running-tests-discovery-selectors]]
+=== Discovery Selectors
+
+The JUnit Platform provides a rich set of discovery selectors that can be used to specify
+which tests should be discovered or executed.
+
+Discovery selectors can be created programmatically using the factory methods in the
+`{DiscoverySelectors}` class, specified declaratively via annotations when using the
+<<junit-platform-suite-engine>>, via options of the <<running-tests-console-launcher>>, or
+generically as strings via their identifiers.
+
+The following discovery selectors are provided out of the box:
+
+|===
+| Java Type                     | API                                            | Annotation                  | Console Launcher                                 | Identifier
+
+| `{ClasspathResourceSelector}` | `{DiscoverySelectors_selectClasspathResource}` | `{SelectClasspathResource}` | `--select-resource /foo.csv`                     | `resource:/foo.csv`
+| `{ClasspathRootSelector}`     | `{DiscoverySelectors_selectClasspathRoots}`    | --                          | `--scan-classpath bin`                           | `classpath-root:bin`
+| `{ClassSelector}`             | `{DiscoverySelectors_selectClass}`             | `{SelectClasses}`           | `--select-class com.acme.Foo`                    | `class:com.acme.Foo`
+| `{DirectorySelector}`         | `{DiscoverySelectors_selectDirectory}`         | `{SelectDirectories}`       | `--select-directory foo/bar`                     | `directory:foo/bar`
+| `{FileSelector}`              | `{DiscoverySelectors_selectFile}`              | `{SelectFile}`              | `--select-file dir/foo.txt`                      | `file:dir/foo.txt`
+| `{IterationSelector}`         | `{DiscoverySelectors_selectIteration}`         | `{Select}("<identifier>")`  | `--select-iteration method=com.acme.Foo#m[1..2]` | `iteration:method:com.acme.Foo#m[1..2]`
+| `{MethodSelector}`            | `{DiscoverySelectors_selectMethod}`            | `{SelectMethod}`            | `--select-method com.acme.Foo#m`                 | `method:com.acme.Foo#m`
+| `{ModuleSelector}`            | `{DiscoverySelectors_selectModule}`            | `{SelectModules}`           | `--select-module com.acme`                       | `module:com.acme`
+| `{NestedClassSelector}`       | `{DiscoverySelectors_selectNestedClass}`       | `{Select}("<identifier>")`  | `--select <identifier>`                          | `nested-class:com.acme.Foo/Bar`
+| `{NestedMethodSelector}`      | `{DiscoverySelectors_selectNestedMethod}`      | `{Select}("<identifier>")`  | `--select <identifier>`                          | `nested-method:com.acme.Foo/Bar#m`
+| `{PackageSelector}`           | `{DiscoverySelectors_selectPackage}`           | `{SelectPackages}`          | `--select-package com.acme.foo`                  | `package:com.acme.foo`
+| `{UniqueIdSelector}`          | `{DiscoverySelectors_selectUniqueId}`          | `{Select}("<identifier>")`  | `--select <identifier>`                          | `uid:...`
+| `{UriSelector}`               | `{DiscoverySelectors_selectUri}`               | `{SelectUris}`              | `--select-uri \file:///foo.txt`                  | `uri:file:///foo.txt`
+|===
+
+
 [[running-tests-config-params]]
 === Configuration Parameters
 
@@ -830,25 +938,32 @@ parameters_ for the following use cases.
 _Configuration Parameters_ are text-based key-value pairs that can be supplied to test
 engines running on the JUnit Platform via one of the following mechanisms.
 
-1. The `configurationParameter()` and `configurationParameters()` methods in the
-  `LauncherDiscoveryRequestBuilder` which is used to build a request supplied to the
-  <<launcher-api, `Launcher` API>>. When running tests via one of the tools provided
-  by the JUnit Platform you can specify configuration parameters as follows:
-  * <<running-tests-console-launcher,Console Launcher>>: use the `--config`
-    command-line option.
-  * <<running-tests-build-gradle-config-params,Gradle>>: use the
-    `systemProperty` or `systemProperties` DSL.
-  * <<running-tests-build-maven-config-params,Maven Surefire provider>>: use the
-    `configurationParameters` property.
-2. JVM system properties.
-3. The JUnit Platform configuration file: a file named `junit-platform.properties` in the
-  root of the class path that follows the syntax rules for a Java `Properties` file.
+1. The `configurationParameter()` and `configurationParameters()` methods in
+   `LauncherDiscoveryRequestBuilder` which
+   is used to build a request supplied to the <<launcher-api, Launcher API>>.
+    +
+   When running tests via one of the tools provided by the JUnit Platform you can specify
+   configuration parameters as follows:
+   * <<running-tests-console-launcher,Console Launcher>>: use the `--config` command-line
+     option.
+   * <<running-tests-build-gradle-config-params,Gradle>>: use the `systemProperty` or
+     `systemProperties` DSL.
+   * <<running-tests-build-maven-config-params,Maven Surefire provider>>: use the
+     `configurationParameters` property.
+2. The `configurationParametersResources()` method in `LauncherDiscoveryRequestBuilder`.
+    +
+   When running tests via the <<running-tests-console-launcher,Console Launcher>> you can
+   specify custom configuration files using the `--config-resource` command-line option.
+3. JVM system properties.
+4. The JUnit Platform default configuration file: a file named `junit-platform.properties`
+   in the root of the class path that follows the syntax rules for Java `Properties`
+   files.
 
 NOTE: Configuration parameters are looked up in the exact order defined above.
 Consequently, configuration parameters supplied directly to the `Launcher` take
-precedence over those supplied via system properties and the configuration file.
-Similarly, configuration parameters supplied via system properties take precedence over
-those supplied via the configuration file.
+precedence over those supplied via custom configuration files, system properties, and the
+default configuration file. Similarly, configuration parameters supplied via system
+properties take precedence over those supplied via the default configuration file.
 
 [[running-tests-config-params-deactivation-pattern]]
 ==== Pattern Matching Syntax
@@ -858,6 +973,8 @@ parameters_ used for the following features.
 
 - <<extensions-conditions-deactivation>>
 - <<launcher-api-listeners-custom-deactivation>>
+- <<stacktrace-pruning>>
+- <<extensions-registration-automatic-filtering>>
 
 If the value for the given _configuration parameter_ consists solely of an asterisk
 (`+++*+++`), the pattern will match against all candidate classes. Otherwise, the value
@@ -1074,3 +1191,19 @@ https://jdk.java.net/jmc/[JDK Mission Control].
 WARNING: Flight Recorder support is currently an _experimental_ feature. You're invited to
 give it a try and provide feedback to the JUnit team so they can improve and eventually
 <<api-evolution, promote>> this feature.
+
+[[stacktrace-pruning]]
+=== Stack Trace Pruning
+
+Since version 1.10, the JUnit Platform provides built-in support for pruning stack traces
+produced by failing tests. This feature is enabled by default but can be disabled by
+setting the `junit.platform.stacktrace.pruning.enabled` _configuration parameter_ to
+`false`.
+
+When enabled, all calls from the `org.junit`, `jdk.internal.reflect`, and `sun.reflect`
+packages are removed from the stack trace, unless the calls occur after the test itself
+or any of its ancestors. For that reason, calls to `{Assertions}` or `{Assumptions}` will
+never be excluded.
+
+In addition, all elements prior to and including the first call from the JUnit Platform
+Launcher will be removed.

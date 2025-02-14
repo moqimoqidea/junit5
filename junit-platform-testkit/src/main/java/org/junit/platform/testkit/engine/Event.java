@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,6 +10,7 @@
 
 package org.junit.platform.testkit.engine;
 
+import static org.apiguardian.api.API.Status.EXPERIMENTAL;
 import static org.apiguardian.api.API.Status.MAINTAINED;
 import static org.junit.platform.commons.util.FunctionUtils.where;
 
@@ -22,6 +23,7 @@ import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.ToStringBuilder;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.reporting.FileEntry;
 import org.junit.platform.engine.reporting.ReportEntry;
 
 /**
@@ -49,6 +51,23 @@ public class Event {
 	public static Event reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry) {
 		Preconditions.notNull(entry, "ReportEntry must not be null");
 		return new Event(EventType.REPORTING_ENTRY_PUBLISHED, testDescriptor, entry);
+	}
+
+	/**
+	 * Create an {@code Event} for a published file for the supplied
+	 * {@link TestDescriptor} and {@link FileEntry}.
+	 *
+	 * @param testDescriptor the {@code TestDescriptor} associated with the event;
+	 * never {@code null}
+	 * @param file the {@code FileEntry} that was published; never {@code null}
+	 * @return the newly created {@code Event}
+	 * @since 1.12
+	 * @see EventType#FILE_ENTRY_PUBLISHED
+	 */
+	@API(status = EXPERIMENTAL, since = "1.12")
+	public static Event fileEntryPublished(TestDescriptor testDescriptor, FileEntry file) {
+		Preconditions.notNull(file, "FileEntry must not be null");
+		return new Event(EventType.FILE_ENTRY_PUBLISHED, testDescriptor, file);
 	}
 
 	/**
@@ -82,8 +101,8 @@ public class Event {
 	 * Create a <em>started</em> {@code Event} for the supplied
 	 * {@link TestDescriptor}.
 	 *
-	 * @param testDescriptor the {@code TestDescriptor} associated with the
-	 * event; never {@code null}
+	 * @param testDescriptor the {@code TestDescriptor} associated with the event;
+	 * never {@code null}
 	 * @return the newly created {@code Event}
 	 * @see EventType#STARTED
 	 */
@@ -95,8 +114,8 @@ public class Event {
 	 * Create a <em>finished</em> {@code Event} for the supplied
 	 * {@link TestDescriptor} and {@link TestExecutionResult}.
 	 *
-	 * @param testDescriptor the {@code TestDescriptor} associated with the
-	 * event; never {@code null}
+	 * @param testDescriptor the {@code TestDescriptor} associated with the event;
+	 * never {@code null}
 	 * @param result the {@code TestExecutionResult} for the supplied
 	 * {@code TestDescriptor}; never {@code null}
 	 * @return the newly created {@code Event}

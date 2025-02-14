@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -18,6 +18,7 @@ import static org.junit.platform.engine.TestExecutionResult.Status.ABORTED;
 import static org.junit.platform.engine.TestExecutionResult.Status.FAILED;
 import static org.junit.platform.engine.TestExecutionResult.Status.SUCCESSFUL;
 import static org.junit.platform.engine.TestExecutionResult.successful;
+import static org.junit.platform.launcher.core.OutputDirectoryProviders.dummyOutputDirectoryProvider;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -37,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.function.ThrowingConsumer;
+import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
@@ -77,7 +79,8 @@ class HierarchicalTestExecutorTests {
 
 	private HierarchicalTestExecutor<MyEngineExecutionContext> createExecutor(
 			HierarchicalTestExecutorService executorService) {
-		var request = new ExecutionRequest(root, listener, null);
+		var request = ExecutionRequest.create(root, listener, mock(ConfigurationParameters.class),
+			dummyOutputDirectoryProvider());
 		return new HierarchicalTestExecutor<>(request, rootContext, executorService,
 			OpenTest4JAwareThrowableCollector::new);
 	}

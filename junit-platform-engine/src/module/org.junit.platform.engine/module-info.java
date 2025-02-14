@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,8 +11,8 @@
 /**
  * Public API for test engines.
  *
- * <p>Provides the {@linkplain org.junit.platform.engine.TestEngine} interface, test discovery
- * and execution reporting support.
+ * <p>Provides the {@link org.junit.platform.engine.TestEngine} interface,
+ * test discovery, and execution reporting support.
  *
  * @since 1.0
  */
@@ -30,4 +30,23 @@ module org.junit.platform.engine {
 	exports org.junit.platform.engine.support.discovery;
 	exports org.junit.platform.engine.support.filter;
 	exports org.junit.platform.engine.support.hierarchical;
+	exports org.junit.platform.engine.support.store;
+
+	uses org.junit.platform.engine.discovery.DiscoverySelectorIdentifierParser;
+
+	provides org.junit.platform.engine.discovery.DiscoverySelectorIdentifierParser with
+			org.junit.platform.engine.discovery.ClassSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.ClasspathResourceSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.ClasspathRootSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.DirectorySelector.IdentifierParser,
+			org.junit.platform.engine.discovery.FileSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.IterationSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.MethodSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.ModuleSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.NestedClassSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.NestedMethodSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.PackageSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.UniqueIdSelector.IdentifierParser,
+			org.junit.platform.engine.discovery.UriSelector.IdentifierParser;
+
 }

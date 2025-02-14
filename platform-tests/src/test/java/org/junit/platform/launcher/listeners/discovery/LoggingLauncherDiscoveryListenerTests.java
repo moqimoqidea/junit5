@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -80,7 +80,7 @@ public class LoggingLauncherDiscoveryListenerTests extends AbstractLauncherDisco
 		assertThat(log.stream(LoggingLauncherDiscoveryListener.class, Level.SEVERE)) //
 				.extracting(LogRecord::getMessage) //
 				.containsExactly(
-					"Resolution of ClassSelector [className = 'java.lang.Object'] by [engine:some-engine] failed");
+					"Resolution of ClassSelector [className = 'java.lang.Object', classLoader = null] by [engine:some-engine] failed");
 	}
 
 	@Test

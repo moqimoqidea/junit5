@@ -1,7 +1,8 @@
 plugins {
 	id("junitbuild.kotlin-library-conventions")
 	id("junitbuild.shadow-conventions")
-	id("junitbuild.testing-conventions")
+	id("junitbuild.jmh-conventions")
+	id("junitbuild.native-image-properties")
 }
 
 description = "JUnit Jupiter Params"
@@ -14,14 +15,7 @@ dependencies {
 
 	shadowed(libs.univocity.parsers)
 
-	testImplementation(projects.junitPlatformTestkit)
-	testImplementation(projects.junitJupiterEngine)
-	testImplementation(projects.junitPlatformLauncher)
-	testImplementation(projects.junitPlatformSuiteEngine)
-	testImplementation(testFixtures(projects.junitJupiterEngine))
-
 	compileOnly(kotlin("stdlib"))
-	testImplementation(kotlin("stdlib"))
 
 	osgiVerification(projects.junitJupiterEngine)
 	osgiVerification(projects.junitPlatformLauncher)
@@ -30,10 +24,11 @@ dependencies {
 tasks {
 	jar {
 		bundle {
+			val version = project.version
 			bnd("""
 				Require-Capability:\
 					org.junit.platform.engine;\
-						filter:='(&(org.junit.platform.engine=junit-jupiter)(version>=${'$'}{version_cleanup;${rootProject.property("version")!!}})(!(version>=${'$'}{versionmask;+;${'$'}{version_cleanup;${rootProject.property("version")!!}}})))';\
+						filter:='(&(org.junit.platform.engine=junit-jupiter)(version>=${'$'}{version_cleanup;$version})(!(version>=${'$'}{versionmask;+;${'$'}{version_cleanup;$version}})))';\
 						effective:=active
 			""")
 		}

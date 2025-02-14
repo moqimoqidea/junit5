@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -113,7 +113,7 @@ class AssertTimeoutPreemptively {
 				cause = new ExecutionTimeoutException("Execution timed out in thread " + thread.getName());
 				cause.setStackTrace(thread.getStackTrace());
 			}
-			throw failureFactory.createTimeoutFailure(timeout, messageSupplier, cause);
+			throw failureFactory.createTimeoutFailure(timeout, messageSupplier, cause, thread);
 		}
 		catch (ExecutionException ex) {
 			throw throwAsUncheckedException(ex.getCause());
@@ -124,7 +124,7 @@ class AssertTimeoutPreemptively {
 	}
 
 	private static AssertionFailedError createAssertionFailure(Duration timeout, Supplier<String> messageSupplier,
-			Throwable cause) {
+			Throwable cause, Thread thread) {
 		return assertionFailure() //
 				.message(messageSupplier) //
 				.reason("execution timed out after " + timeout.toMillis() + " ms") //

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -46,9 +46,9 @@ public class LegacyReportingUtils {
 	 * {@linkplain TestIdentifier#getLegacyReportingName legacy reporting name}.
 	 *
 	 * @param testPlan the test plan that contains the {@code TestIdentifier};
-	 *                 never {@code null}
+	 * never {@code null}
 	 * @param testIdentifier the identifier to determine the class name for;
-	 *                 never {@code null}
+	 * never {@code null}
 	 * @see TestIdentifier#getLegacyReportingName
 	 */
 	public static String getClassName(TestPlan testPlan, TestIdentifier testIdentifier) {

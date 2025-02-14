@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -13,7 +13,7 @@ package org.junit.jupiter.api.condition;
 import static java.lang.String.format;
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.disabled;
 import static org.junit.jupiter.api.extension.ConditionEvaluationResult.enabled;
-import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
+import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -25,6 +25,8 @@ import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.support.ReflectionSupport;
+import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.commons.util.StringUtils;
@@ -56,20 +58,23 @@ abstract class MethodBasedCondition<A extends Annotation> implements ExecutionCo
 				.orElseGet(this::enabledByDefault);
 	}
 
-	private Method getConditionMethod(String fullyQualifiedMethodName, ExtensionContext context) {
+	// package-private for testing
+	Method getConditionMethod(String fullyQualifiedMethodName, ExtensionContext context) {
+		Class<?> testClass = context.getRequiredTestClass();
 		if (!fullyQualifiedMethodName.contains("#")) {
-			return findMethod(context.getRequiredTestClass(), fullyQualifiedMethodName);
+			return findMethod(testClass, fullyQualifiedMethodName);
 		}
 		String[] methodParts = ReflectionUtils.parseFullyQualifiedMethodName(fullyQualifiedMethodName);
 		String className = methodParts[0];
 		String methodName = methodParts[1];
-		Class<?> clazz = ReflectionUtils.tryToLoadClass(className).getOrThrow(
+		ClassLoader classLoader = ClassLoaderUtils.getClassLoader(testClass);
+		Class<?> clazz = ReflectionSupport.tryToLoadClass(className, classLoader).getOrThrow(
 			cause -> new JUnitException(format("Could not load class [%s]", className), cause));
 		return findMethod(clazz, methodName);
 	}
 
 	private Method findMethod(Class<?> clazz, String methodName) {
-		return ReflectionUtils.findMethod(clazz, methodName) //
+		return ReflectionSupport.findMethod(clazz, methodName) //
 				.orElseGet(() -> ReflectionUtils.getRequiredMethod(clazz, methodName, ExtensionContext.class));
 	}
 
@@ -81,9 +86,9 @@ abstract class MethodBasedCondition<A extends Annotation> implements ExecutionCo
 
 		Object testInstance = context.getTestInstance().orElse(null);
 		if (method.getParameterCount() == 0) {
-			return (boolean) ReflectionUtils.invokeMethod(method, testInstance);
+			return (boolean) ReflectionSupport.invokeMethod(method, testInstance);
 		}
-		return (boolean) ReflectionUtils.invokeMethod(method, testInstance, context);
+		return (boolean) ReflectionSupport.invokeMethod(method, testInstance, context);
 	}
 
 	private boolean acceptsExtensionContextOrNoArguments(Method method) {

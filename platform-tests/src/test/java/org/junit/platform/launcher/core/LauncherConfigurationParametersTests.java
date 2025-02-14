@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,7 +14,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +30,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstancePostProcessor;
+import org.junit.jupiter.api.fixtures.TrackLogRecords;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.PreconditionViolationException;
+import org.junit.platform.commons.logging.LogRecordListener;
 import org.junit.platform.engine.ConfigurationParameters;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
@@ -190,6 +201,40 @@ class LauncherConfigurationParametersTests {
 		assertThat(configParams.get(KEY)).isEmpty();
 	}
 
+	@Test
+	void warnsOnMultiplePropertyResources(@TempDir Path tempDir, @TrackLogRecords LogRecordListener logRecordListener)
+			throws Exception {
+		Properties properties = new Properties();
+		properties.setProperty(KEY, "from second config file");
+		try (var out = Files.newOutputStream(tempDir.resolve(CONFIG_FILE_NAME))) {
+			properties.store(out, "");
+		}
+		ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+		try (var customClassLoader = new URLClassLoader(new URL[] { tempDir.toUri().toURL() }, originalClassLoader)) {
+			Thread.currentThread().setContextClassLoader(customClassLoader);
+			ConfigurationParameters configParams = fromMapAndFile(Map.of(), CONFIG_FILE_NAME);
+
+			assertThat(configParams.get(KEY)).contains(CONFIG_FILE);
+
+			List<String> loggedWarnings = logRecordListener.stream(Level.WARNING) //
+					.map(LogRecord::getMessage) //
+					.toList();
+			assertThat(loggedWarnings) //
+					.hasSize(1);
+			assertThat(loggedWarnings.getFirst()) //
+					.contains("Discovered 2 '" + CONFIG_FILE_NAME
+							+ "' configuration files on the classpath (see below); only the first (*) will be used.") //
+					.contains("- "
+							+ Path.of(
+								"build/resources/test/test-junit-platform.properties").toAbsolutePath().toUri().toURL()
+							+ " (*)") //
+					.contains("- " + tempDir.resolve(CONFIG_FILE_NAME).toUri().toURL());
+		}
+		finally {
+			Thread.currentThread().setContextClassLoader(originalClassLoader);
+		}
+	}
+
 	private static LauncherConfigurationParameters fromMap(Map<String, String> map) {
 		return LauncherConfigurationParameters.builder().explicitParameters(map).build();
 	}
@@ -221,6 +266,7 @@ class LauncherConfigurationParametersTests {
 		}
 	}
 
+	@SuppressWarnings("JUnitMalformedDeclaration")
 	@ExtendWith(Mutator.class)
 	static class Something {
 

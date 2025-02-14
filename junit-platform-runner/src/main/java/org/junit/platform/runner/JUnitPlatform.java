@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -30,6 +30,7 @@ import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.junit.platform.suite.api.ConfigurationParameter;
+import org.junit.platform.suite.api.ConfigurationParametersResource;
 import org.junit.platform.suite.api.ExcludeClassNamePatterns;
 import org.junit.platform.suite.api.ExcludeEngines;
 import org.junit.platform.suite.api.ExcludePackages;
@@ -38,6 +39,7 @@ import org.junit.platform.suite.api.IncludeClassNamePatterns;
 import org.junit.platform.suite.api.IncludeEngines;
 import org.junit.platform.suite.api.IncludePackages;
 import org.junit.platform.suite.api.IncludeTags;
+import org.junit.platform.suite.api.Select;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.SelectClasspathResource;
 import org.junit.platform.suite.api.SelectDirectories;
@@ -87,6 +89,7 @@ import org.junit.runner.notification.RunNotifier;
  * ClassNameFilter#STANDARD_INCLUDE_PATTERN}).
  *
  * @since 1.0
+ * @see Select
  * @see SelectClasses
  * @see SelectClasspathResource
  * @see SelectDirectories
@@ -105,6 +108,7 @@ import org.junit.runner.notification.RunNotifier;
  * @see SuiteDisplayName
  * @see org.junit.platform.suite.api.UseTechnicalNames UseTechnicalNames
  * @see ConfigurationParameter
+ * @see ConfigurationParametersResource
  * @deprecated since 1.8, in favor of the {@link Suite @Suite} support provided by
  * the {@code junit-platform-suite-engine} module; to be removed in JUnit Platform 2.0
  */
@@ -156,6 +160,7 @@ public class JUnitPlatform extends Runner implements Filterable {
 		return new JUnitPlatformTestTree(testPlan, this.testClass);
 	}
 
+	@SuppressWarnings("deprecation")
 	private LauncherDiscoveryRequest createDiscoveryRequest() {
 		SuiteLauncherDiscoveryRequestBuilder requestBuilder = request();
 		// Allows @RunWith(JUnitPlatform.class) to be added to any test case

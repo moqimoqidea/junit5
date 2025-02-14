@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -15,6 +15,7 @@ import static org.apiguardian.api.API.Status.STABLE;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.function.Function;
 
 import org.apiguardian.api.API;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.platform.commons.PreconditionViolationException;
 import org.junit.platform.commons.support.ReflectionSupport;
@@ -313,7 +315,7 @@ public interface ExtensionContext {
 	 * @see System#getProperty(String)
 	 * @see org.junit.platform.engine.ConfigurationParameters
 	 */
-	@API(status = EXPERIMENTAL, since = "5.7")
+	@API(status = STABLE, since = "5.10")
 	<T> Optional<T> getConfigurationParameter(String key, Function<String, T> transformer);
 
 	/**
@@ -366,6 +368,40 @@ public interface ExtensionContext {
 	}
 
 	/**
+	 * Publish a file with the supplied name written by the supplied action and
+	 * attach it to the current test or container.
+	 * <p>
+	 * The file will be resolved in the report output directory prior to
+	 * invoking the supplied action.
+	 *
+	 * @param name the name of the file to be attached; never {@code null} or
+	 * blank and must not contain any path separators
+	 * @param mediaType the media type of the file; never {@code null}; use
+	 * {@link MediaType#APPLICATION_OCTET_STREAM} if unknown
+	 * @param action the action to be executed to write the file; never {@code null}
+	 * @since 5.12
+	 * @see org.junit.platform.engine.EngineExecutionListener#fileEntryPublished
+	 */
+	@API(status = EXPERIMENTAL, since = "5.12")
+	void publishFile(String name, MediaType mediaType, ThrowingConsumer<Path> action);
+
+	/**
+	 * Publish a directory with the supplied name written by the supplied action
+	 * and attach it to the current test or container.
+	 * <p>
+	 * The directory will be resolved and created in the report output directory
+	 * prior to invoking the supplied action.
+	 *
+	 * @param name the name of the directory to be attached; never {@code null}
+	 * or blank and must not contain any path separators
+	 * @param action the action to be executed to write the file; never {@code null}
+	 * @since 5.12
+	 * @see org.junit.platform.engine.EngineExecutionListener#fileEntryPublished
+	 */
+	@API(status = EXPERIMENTAL, since = "5.12")
+	void publishDirectory(String name, ThrowingConsumer<Path> action);
+
+	/**
 	 * Get the {@link Store} for the supplied {@link Namespace}.
 	 *
 	 * <p>Use {@code getStore(Namespace.GLOBAL)} to get the default, global {@link Namespace}.
@@ -399,7 +435,7 @@ public interface ExtensionContext {
 	 *
 	 * @since 5.9
 	 */
-	@API(status = EXPERIMENTAL, since = "5.9")
+	@API(status = STABLE, since = "5.11")
 	ExecutableInvoker getExecutableInvoker();
 
 	/**
@@ -547,7 +583,7 @@ public interface ExtensionContext {
 		 *
 		 * @param key the key; never {@code null}
 		 * @param defaultCreator the function called with the supplied {@code key}
-		 * to create a new value; never {@code null}
+		 * to create a new value; never {@code null} but may return {@code null}
 		 * @param <K> the key type
 		 * @param <V> the value type
 		 * @return the value; potentially {@code null}
@@ -574,7 +610,7 @@ public interface ExtensionContext {
 		 *
 		 * @param key the key; never {@code null}
 		 * @param defaultCreator the function called with the supplied {@code key}
-		 * to create a new value; never {@code null}
+		 * to create a new value; never {@code null} but may return {@code null}
 		 * @param requiredType the required type of the value; never {@code null}
 		 * @param <K> the key type
 		 * @param <V> the value type
@@ -699,7 +735,7 @@ public interface ExtensionContext {
 		 * @return new namespace; never {@code null}
 		 * @since 5.8
 		 */
-		@API(status = EXPERIMENTAL, since = "5.8")
+		@API(status = STABLE, since = "5.10")
 		public Namespace append(Object... parts) {
 			Preconditions.notEmpty(parts, "parts array must not be null or empty");
 			Preconditions.containsNoNullElements(parts, "individual parts must not be null");

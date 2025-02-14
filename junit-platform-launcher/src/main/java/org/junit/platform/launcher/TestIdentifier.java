@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -122,9 +122,9 @@ public final class TestIdentifier implements Serializable {
 	 * behind the scenes.
 	 *
 	 * @return the unique ID for this identifier; never {@code null}
-	 * @since 5.8
+	 * @since 1.8
 	 */
-	@API(status = STABLE, since = "5.8")
+	@API(status = STABLE, since = "1.8")
 	public UniqueId getUniqueIdObject() {
 		return this.uniqueId;
 	}
@@ -150,9 +150,9 @@ public final class TestIdentifier implements Serializable {
 	 *
 	 * @return a container for the unique ID for this identifier's parent;
 	 * never {@code null} though potentially <em>empty</em>
-	 * @since 5.8
+	 * @since 1.8
 	 */
-	@API(status = STABLE, since = "5.8")
+	@API(status = STABLE, since = "1.8")
 	public Optional<UniqueId> getParentIdObject() {
 		return Optional.ofNullable(this.parentId);
 	}
@@ -284,13 +284,14 @@ public final class TestIdentifier implements Serializable {
 		source = serializedForm.source;
 		tags = serializedForm.tags;
 		type = serializedForm.type;
-		parentId = UniqueId.parse(serializedForm.parentId);
+		String parentId = serializedForm.parentId;
+		this.parentId = parentId == null ? null : UniqueId.parse(parentId);
 		legacyReportingName = serializedForm.legacyReportingName;
 	}
 
 	/**
 	 * Represents the serialized output of {@code TestIdentifier}. The fields on this
-	 * class match the fields that {@code TestIdentifier} had prior to 5.8.
+	 * class match the fields that {@code TestIdentifier} had prior to 1.8.
 	 */
 	private static class SerializedForm implements Serializable {
 
@@ -307,7 +308,8 @@ public final class TestIdentifier implements Serializable {
 
 		SerializedForm(TestIdentifier testIdentifier) {
 			this.uniqueId = testIdentifier.uniqueId.toString();
-			this.parentId = testIdentifier.parentId.toString();
+			UniqueId parentId = testIdentifier.parentId;
+			this.parentId = parentId == null ? null : parentId.toString();
 			this.displayName = testIdentifier.displayName;
 			this.legacyReportingName = testIdentifier.legacyReportingName;
 			this.source = testIdentifier.source;

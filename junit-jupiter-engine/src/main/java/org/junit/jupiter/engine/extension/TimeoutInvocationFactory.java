@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -39,11 +39,13 @@ class TimeoutInvocationFactory {
 		Preconditions.notNull(timeoutInvocationParameters, "timeout invocation parameters must not be null");
 		if (threadMode == ThreadMode.SEPARATE_THREAD) {
 			return new SeparateThreadTimeoutInvocation<>(timeoutInvocationParameters.getInvocation(),
-				timeoutInvocationParameters.getTimeoutDuration(), timeoutInvocationParameters.getDescriptionSupplier());
+				timeoutInvocationParameters.getTimeoutDuration(), timeoutInvocationParameters.getDescriptionSupplier(),
+				timeoutInvocationParameters.getPreInterruptCallback());
 		}
 		return new SameThreadTimeoutInvocation<>(timeoutInvocationParameters.getInvocation(),
 			timeoutInvocationParameters.getTimeoutDuration(), getThreadExecutorForSameThreadInvocation(),
-			timeoutInvocationParameters.getDescriptionSupplier());
+			timeoutInvocationParameters.getDescriptionSupplier(),
+			timeoutInvocationParameters.getPreInterruptCallback());
 	}
 
 	private ScheduledExecutorService getThreadExecutorForSameThreadInvocation() {
@@ -90,13 +92,16 @@ class TimeoutInvocationFactory {
 		private final Invocation<T> invocation;
 		private final TimeoutDuration timeout;
 		private final Supplier<String> descriptionSupplier;
+		private final PreInterruptCallbackInvocation preInterruptCallback;
 
 		TimeoutInvocationParameters(Invocation<T> invocation, TimeoutDuration timeout,
-				Supplier<String> descriptionSupplier) {
+				Supplier<String> descriptionSupplier, PreInterruptCallbackInvocation preInterruptCallback) {
 			this.invocation = Preconditions.notNull(invocation, "invocation must not be null");
 			this.timeout = Preconditions.notNull(timeout, "timeout must not be null");
 			this.descriptionSupplier = Preconditions.notNull(descriptionSupplier,
 				"description supplier must not be null");
+			this.preInterruptCallback = Preconditions.notNull(preInterruptCallback,
+				"preInterruptCallback must not be null");
 		}
 
 		public Invocation<T> getInvocation() {
@@ -109,6 +114,10 @@ class TimeoutInvocationFactory {
 
 		public Supplier<String> getDescriptionSupplier() {
 			return descriptionSupplier;
+		}
+
+		public PreInterruptCallbackInvocation getPreInterruptCallback() {
+			return preInterruptCallback;
 		}
 	}
 }

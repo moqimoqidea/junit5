@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,11 +10,13 @@
 
 package org.junit.vintage.engine;
 
+import static java.util.function.Predicate.isEqual;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod;
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectUniqueId;
+import static org.junit.platform.launcher.core.OutputDirectoryProviders.dummyOutputDirectoryProvider;
 import static org.junit.platform.testkit.engine.EventConditions.abortedWithReason;
 import static org.junit.platform.testkit.engine.EventConditions.container;
 import static org.junit.platform.testkit.engine.EventConditions.displayName;
@@ -45,7 +47,6 @@ import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.UniqueId;
-import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.testkit.engine.EngineExecutionResults;
@@ -56,8 +57,10 @@ import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
+import org.junit.vintage.engine.samples.junit3.IgnoredJUnit3TestCase;
 import org.junit.vintage.engine.samples.junit3.JUnit3ParallelSuiteWithSubsuites;
 import org.junit.vintage.engine.samples.junit3.JUnit3SuiteWithSubsuites;
+import org.junit.vintage.engine.samples.junit3.JUnit4SuiteWithIgnoredJUnit3TestCase;
 import org.junit.vintage.engine.samples.junit3.PlainJUnit3TestCaseWithSingleTestWhichFails;
 import org.junit.vintage.engine.samples.junit4.CompletelyDynamicTestCase;
 import org.junit.vintage.engine.samples.junit4.EmptyIgnoredTestCase;
@@ -393,14 +396,6 @@ class VintageTestEngineExecutionTests {
 			public void executionSkipped(TestDescriptor testDescriptor, String reason) {
 				PlainJUnit4TestCaseWithLifecycleMethods.EVENTS.add(
 					"executionSkipped:" + testDescriptor.getDisplayName());
-			}
-
-			@Override
-			public void dynamicTestRegistered(TestDescriptor testDescriptor) {
-			}
-
-			@Override
-			public void reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry) {
 			}
 		};
 
@@ -746,7 +741,7 @@ class VintageTestEngineExecutionTests {
 					instanceOf(MultipleFailuresError.class), //
 					new Condition<>(throwable -> ((MultipleFailuresError) throwable).getFailures().size() == 3,
 						"MultipleFailuresError must contain 3 failures"), //
-					new Condition<>(throwable -> ((MultipleFailuresError) throwable).getSuppressed().length == 3,
+					new Condition<>(throwable -> throwable.getSuppressed().length == 3,
 						"MultipleFailuresError must contain 3 suppressed exceptions")//
 				)), //
 			event(container(testClass), finishedSuccessfully()), //
@@ -896,6 +891,27 @@ class VintageTestEngineExecutionTests {
 			event(engine(), finishedSuccessfully()));
 	}
 
+	@Test
+	void executesIgnoredJUnit3TestCase() {
+		var suiteClass = IgnoredJUnit3TestCase.class;
+		execute(suiteClass).allEvents().assertEventsMatchExactly( //
+			event(engine(), started()), //
+			event(container(suiteClass), skippedWithReason(isEqual("testing"))), //
+			event(engine(), finishedSuccessfully()));
+	}
+
+	@Test
+	void executesJUnit4SuiteWithIgnoredJUnit3TestCase() {
+		var suiteClass = JUnit4SuiteWithIgnoredJUnit3TestCase.class;
+		var testClass = IgnoredJUnit3TestCase.class;
+		execute(suiteClass).allEvents().assertEventsMatchExactly( //
+			event(engine(), started()), //
+			event(container(suiteClass), started()), //
+			event(container(testClass), skippedWithReason(isEqual("testing"))), //
+			event(container(suiteClass), finishedSuccessfully()), //
+			event(engine(), finishedSuccessfully()));
+	}
+
 	private static EngineExecutionResults execute(Class<?> testClass) {
 		return execute(request(testClass));
 	}
@@ -908,8 +924,8 @@ class VintageTestEngineExecutionTests {
 		TestEngine testEngine = new VintageTestEngine();
 		var discoveryRequest = request(testClass);
 		var engineTestDescriptor = testEngine.discover(discoveryRequest, UniqueId.forEngine(testEngine.getId()));
-		testEngine.execute(
-			new ExecutionRequest(engineTestDescriptor, listener, discoveryRequest.getConfigurationParameters()));
+		testEngine.execute(ExecutionRequest.create(engineTestDescriptor, listener,
+			discoveryRequest.getConfigurationParameters(), dummyOutputDirectoryProvider()));
 	}
 
 	private static LauncherDiscoveryRequest request(Class<?> testClass) {

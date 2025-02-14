@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -13,8 +13,7 @@ package org.junit.jupiter.params.provider;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
-import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
+import static org.junit.platform.commons.support.AnnotationSupport.isAnnotated;
 import static org.junit.platform.commons.util.CollectionUtils.isConvertibleToStream;
 
 import java.lang.reflect.Method;
@@ -26,8 +25,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.params.support.AnnotationConsumer;
-import org.junit.platform.commons.JUnitException;
+import org.junit.platform.commons.PreconditionViolationException;
+import org.junit.platform.commons.util.ClassLoaderUtils;
 import org.junit.platform.commons.util.CollectionUtils;
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.ReflectionUtils;
@@ -36,44 +35,51 @@ import org.junit.platform.commons.util.StringUtils;
 /**
  * @since 5.0
  */
-class MethodArgumentsProvider implements ArgumentsProvider, AnnotationConsumer<MethodSource> {
+class MethodArgumentsProvider extends AnnotationBasedArgumentsProvider<MethodSource> {
 
-	private String[] methodNames;
-
-	@Override
-	public void accept(MethodSource annotation) {
-		this.methodNames = annotation.value();
-	}
+	private static final Predicate<Method> isFactoryMethod = //
+		method -> isConvertibleToStream(method.getReturnType()) && !isTestMethod(method);
 
 	@Override
-	public Stream<Arguments> provideArguments(ExtensionContext context) {
+	protected Stream<? extends Arguments> provideArguments(ExtensionContext context, MethodSource methodSource) {
 		Class<?> testClass = context.getRequiredTestClass();
 		Method testMethod = context.getRequiredTestMethod();
 		Object testInstance = context.getTestInstance().orElse(null);
+		String[] methodNames = methodSource.value();
 		// @formatter:off
-		return stream(this.methodNames)
-				.map(factoryMethodName -> getFactoryMethod(testClass, testMethod, factoryMethodName))
+		return stream(methodNames)
+				.map(factoryMethodName -> findFactoryMethod(testClass, testMethod, factoryMethodName))
+				.map(factoryMethod -> validateFactoryMethod(factoryMethod, testInstance))
 				.map(factoryMethod -> context.getExecutableInvoker().invoke(factoryMethod, testInstance))
 				.flatMap(CollectionUtils::toStream)
-				.map(MethodArgumentsProvider::toArguments);
+				.map(ArgumentsUtils::toArguments);
 		// @formatter:on
 	}
 
-	private Method getFactoryMethod(Class<?> testClass, Method testMethod, String factoryMethodName) {
-		if (!StringUtils.isBlank(factoryMethodName)) {
-			if (looksLikeAFullyQualifiedMethodName(factoryMethodName)) {
-				return getFactoryMethodByFullyQualifiedName(factoryMethodName);
-			}
-			else if (looksLikeALocalQualifiedMethodName(factoryMethodName)) {
-				return getFactoryMethodByFullyQualifiedName(testClass.getName() + "#" + factoryMethodName);
-			}
-		}
-		else {
-			// User did not provide a factory method name, so we search for a
-			// factory method with the same name as the parameterized test method.
+	private static Method findFactoryMethod(Class<?> testClass, Method testMethod, String factoryMethodName) {
+		String originalFactoryMethodName = factoryMethodName;
+
+		// If the user did not provide a factory method name, find a "default" local
+		// factory method with the same name as the parameterized test method.
+		if (StringUtils.isBlank(factoryMethodName)) {
 			factoryMethodName = testMethod.getName();
+			return findFactoryMethodBySimpleName(testClass, testMethod, factoryMethodName);
 		}
-		return findFactoryMethodBySimpleName(testClass, testMethod, factoryMethodName);
+
+		// Convert local factory method name to fully qualified method name.
+		if (!looksLikeAFullyQualifiedMethodName(factoryMethodName)) {
+			factoryMethodName = testClass.getName() + "#" + factoryMethodName;
+		}
+
+		// Find factory method using fully qualified name.
+		Method factoryMethod = findFactoryMethodByFullyQualifiedName(testClass, testMethod, factoryMethodName);
+
+		// Ensure factory method has a valid return type and is not a test method.
+		Preconditions.condition(isFactoryMethod.test(factoryMethod), () -> format(
+			"Could not find valid factory method [%s] for test class [%s] but found the following invalid candidate: %s",
+			originalFactoryMethodName, testClass.getName(), factoryMethod));
+
+		return factoryMethod;
 	}
 
 	private static boolean looksLikeAFullyQualifiedMethodName(String factoryMethodName) {
@@ -96,46 +102,51 @@ class MethodArgumentsProvider implements ArgumentsProvider, AnnotationConsumer<M
 		return true;
 	}
 
-	private static boolean looksLikeALocalQualifiedMethodName(String factoryMethodName) {
-		// This method is intended to be called after looksLikeAFullyQualifiedMethodName()
-		// and therefore does not check for the absence of '#' and does not reason about
-		// the presence or absence of a fully qualified class name.
-		if (factoryMethodName.endsWith("()")) {
-			return true;
-		}
-		int indexOfLastOpeningParenthesis = factoryMethodName.lastIndexOf('(');
-		return (indexOfLastOpeningParenthesis > 0)
-				&& (indexOfLastOpeningParenthesis < factoryMethodName.lastIndexOf(')'));
-	}
-
-	private Method getFactoryMethodByFullyQualifiedName(String fullyQualifiedMethodName) {
+	// package-private for testing
+	static Method findFactoryMethodByFullyQualifiedName(Class<?> testClass, Method testMethod,
+			String fullyQualifiedMethodName) {
 		String[] methodParts = ReflectionUtils.parseFullyQualifiedMethodName(fullyQualifiedMethodName);
 		String className = methodParts[0];
 		String methodName = methodParts[1];
 		String methodParameters = methodParts[2];
+		ClassLoader classLoader = ClassLoaderUtils.getClassLoader(testClass);
+		Class<?> clazz = ReflectionUtils.loadRequiredClass(className, classLoader);
 
-		return ReflectionUtils.findMethod(loadRequiredClass(className), methodName, methodParameters).orElseThrow(
-			() -> new JUnitException(format("Could not find factory method [%s(%s)] in class [%s]", methodName,
-				methodParameters, className)));
+		// Attempt to find an exact match first.
+		Method factoryMethod = ReflectionUtils.findMethod(clazz, methodName, methodParameters).orElse(null);
+		if (factoryMethod != null) {
+			return factoryMethod;
+		}
+
+		boolean explicitParameterListSpecified = //
+			StringUtils.isNotBlank(methodParameters) || fullyQualifiedMethodName.endsWith("()");
+
+		// If we didn't find an exact match but an explicit parameter list was specified,
+		// that's a user configuration error.
+		Preconditions.condition(!explicitParameterListSpecified,
+			() -> format("Could not find factory method [%s(%s)] in class [%s]", methodName, methodParameters,
+				className));
+
+		// Otherwise, fall back to the same lenient search semantics that are used
+		// to locate a "default" local factory method.
+		return findFactoryMethodBySimpleName(clazz, testMethod, methodName);
 	}
 
 	/**
-	 * Find all methods in the given {@code testClass} with the desired {@code factoryMethodName}
-	 * which have return types that can be converted to a {@link Stream}, ignoring the
-	 * {@code testMethod} itself as well as any {@code @Test}, {@code @TestTemplate},
-	 * or {@code @TestFactory} methods with the same name.
-	 * @return the factory method, if found
-	 * @throws org.junit.platform.commons.PreconditionViolationException if the
-	 * factory method was not found or if multiple competing factory methods with
-	 * the same name were found
+	 * Find the factory method by searching for all methods in the given {@code clazz}
+	 * with the desired {@code factoryMethodName} which have return types that can be
+	 * converted to a {@link Stream}, ignoring the {@code testMethod} itself as well
+	 * as any {@code @Test}, {@code @TestTemplate}, or {@code @TestFactory} methods
+	 * with the same name.
+	 * @return the single factory method matching the search criteria
+	 * @throws PreconditionViolationException if the factory method was not found or
+	 * multiple competing factory methods with the same name were found
 	 */
-	private Method findFactoryMethodBySimpleName(Class<?> testClass, Method testMethod, String factoryMethodName) {
+	private static Method findFactoryMethodBySimpleName(Class<?> clazz, Method testMethod, String factoryMethodName) {
 		Predicate<Method> isCandidate = candidate -> factoryMethodName.equals(candidate.getName())
 				&& !testMethod.equals(candidate);
-		List<Method> candidates = ReflectionUtils.findMethods(testClass, isCandidate);
+		List<Method> candidates = ReflectionUtils.findMethods(clazz, isCandidate);
 
-		Predicate<Method> isFactoryMethod = method -> isConvertibleToStream(method.getReturnType())
-				&& !isTestMethod(method);
 		List<Method> factoryMethods = candidates.stream().filter(isFactoryMethod).collect(toList());
 
 		Preconditions.condition(factoryMethods.size() > 0, () -> {
@@ -145,48 +156,30 @@ class MethodArgumentsProvider implements ArgumentsProvider, AnnotationConsumer<M
 			if (candidates.size() > 0) {
 				return format(
 					"Could not find valid factory method [%s] in class [%s] but found the following invalid candidates: %s",
-					factoryMethodName, testClass.getName(), candidates);
+					factoryMethodName, clazz.getName(), candidates);
 			}
 			// Otherwise, report that we didn't find anything.
-			return format("Could not find factory method [%s] in class [%s]", factoryMethodName, testClass.getName());
+			return format("Could not find factory method [%s] in class [%s]", factoryMethodName, clazz.getName());
 		});
 		Preconditions.condition(factoryMethods.size() == 1,
 			() -> format("%d factory methods named [%s] were found in class [%s]: %s", factoryMethods.size(),
-				factoryMethodName, testClass.getName(), factoryMethods));
+				factoryMethodName, clazz.getName(), factoryMethods));
 		return factoryMethods.get(0);
 	}
 
-	private boolean isTestMethod(Method candidate) {
+	private static boolean isTestMethod(Method candidate) {
 		return isAnnotated(candidate, Test.class) || isAnnotated(candidate, TestTemplate.class)
 				|| isAnnotated(candidate, TestFactory.class);
 	}
 
-	private Class<?> loadRequiredClass(String className) {
-		return ReflectionUtils.tryToLoadClass(className).getOrThrow(
-			cause -> new JUnitException(format("Could not load class [%s]", className), cause));
-	}
-
-	private static Arguments toArguments(Object item) {
-
-		// Nothing to do except cast.
-		if (item instanceof Arguments) {
-			return (Arguments) item;
-		}
-
-		// Pass all multidimensional arrays "as is", in contrast to Object[].
-		// See https://github.com/junit-team/junit5/issues/1665
-		if (ReflectionUtils.isMultidimensionalArray(item)) {
-			return arguments(item);
-		}
-
-		// Special treatment for one-dimensional reference arrays.
-		// See https://github.com/junit-team/junit5/issues/1665
-		if (item instanceof Object[]) {
-			return arguments((Object[]) item);
-		}
-
-		// Pass everything else "as is".
-		return arguments(item);
+	private static Method validateFactoryMethod(Method factoryMethod, Object testInstance) {
+		Preconditions.condition(
+			factoryMethod.getDeclaringClass().isInstance(testInstance) || ReflectionUtils.isStatic(factoryMethod),
+			() -> format("Method '%s' must be static: local factory methods must be static "
+					+ "unless the PER_CLASS @TestInstance lifecycle mode is used; "
+					+ "external factory methods must always be static.",
+				factoryMethod.toGenericString()));
+		return factoryMethod;
 	}
 
 }

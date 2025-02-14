@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -39,7 +39,7 @@ public final class ReportEntry {
 	/**
 	 * @deprecated Use {@link #from(String, String)} or {@link #from(Map)}
 	 */
-	@API(status = DEPRECATED, since = "5.8")
+	@API(status = DEPRECATED, since = "1.8")
 	@Deprecated
 	public ReportEntry() {
 	}
@@ -83,7 +83,7 @@ public final class ReportEntry {
 	 *
 	 * @return a copy of the map of key-value pairs; never {@code null}
 	 */
-	public final Map<String, String> getKeyValuePairs() {
+	public Map<String, String> getKeyValuePairs() {
 		return Collections.unmodifiableMap(this.keyValuePairs);
 	}
 
@@ -94,7 +94,7 @@ public final class ReportEntry {
 	 *
 	 * @return when this entry was created; never {@code null}
 	 */
-	public final LocalDateTime getTimestamp() {
+	public LocalDateTime getTimestamp() {
 		return this.timestamp;
 	}
 

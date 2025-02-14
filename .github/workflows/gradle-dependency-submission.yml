@@ -1,0 +1,28 @@
+name: Gradle Dependency Submission
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  dependency-submission:
+    if: github.repository == 'junit-team/junit5'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      with:
+        fetch-depth: 1
+    - name: Setup Java
+      uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4
+      with:
+        distribution: temurin
+        java-version: 21
+        check-latest: true
+    - name: Generate and submit dependency graph
+      uses: gradle/actions/dependency-submission@94baf225fe0a508e581a564467443d0e2379123b # v4

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -19,7 +19,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.extension.InvocationInterceptor.Invocation;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
-import org.junit.platform.commons.util.ReflectionUtils;
+import org.junit.platform.commons.support.ReflectionSupport;
 
 class MethodInvocation<T> implements Invocation<T>, ReflectiveInvocationContext<Method> {
 
@@ -57,7 +57,7 @@ class MethodInvocation<T> implements Invocation<T>, ReflectiveInvocationContext<
 	@Override
 	@SuppressWarnings("unchecked")
 	public T proceed() {
-		return (T) ReflectionUtils.invokeMethod(this.method, this.target.orElse(null), this.arguments);
+		return (T) ReflectionSupport.invokeMethod(this.method, this.target.orElse(null), this.arguments);
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -13,24 +13,26 @@ package org.junit.jupiter.engine.descriptor;
 import static java.util.Collections.emptyList;
 import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.junit.jupiter.engine.descriptor.DisplayNameUtils.createDisplayNameSupplierForNestedClass;
+import static org.junit.jupiter.engine.descriptor.ResourceLockAware.enclosingInstanceTypesDependentResourceLocksProviderEvaluator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.apiguardian.api.API;
-import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstances;
+import org.junit.jupiter.api.parallel.ResourceLocksProvider;
 import org.junit.jupiter.engine.config.JupiterConfiguration;
+import org.junit.jupiter.engine.execution.ExtensionContextSupplier;
 import org.junit.jupiter.engine.execution.JupiterEngineExecutionContext;
-import org.junit.jupiter.engine.extension.ExtensionRegistrar;
 import org.junit.jupiter.engine.extension.ExtensionRegistry;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.UniqueId;
-import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 /**
  * {@link TestDescriptor} for tests based on nested (but not static) Java classes.
@@ -47,8 +49,10 @@ public class NestedClassTestDescriptor extends ClassBasedTestDescriptor {
 
 	public static final String SEGMENT_TYPE = "nested-class";
 
-	public NestedClassTestDescriptor(UniqueId uniqueId, Class<?> testClass, JupiterConfiguration configuration) {
-		super(uniqueId, testClass, createDisplayNameSupplierForNestedClass(testClass, configuration), configuration);
+	public NestedClassTestDescriptor(UniqueId uniqueId, Class<?> testClass,
+			Supplier<List<Class<?>>> enclosingInstanceTypes, JupiterConfiguration configuration) {
+		super(uniqueId, testClass,
+			createDisplayNameSupplierForNestedClass(enclosingInstanceTypes, testClass, configuration), configuration);
 	}
 
 	// --- TestDescriptor ------------------------------------------------------
@@ -63,7 +67,11 @@ public class NestedClassTestDescriptor extends ClassBasedTestDescriptor {
 
 	@Override
 	public List<Class<?>> getEnclosingTestClasses() {
-		TestDescriptor parent = getParent().orElse(null);
+		return getEnclosingTestClasses(getParent().orElse(null));
+	}
+
+	@API(status = INTERNAL, since = "5.12")
+	public static List<Class<?>> getEnclosingTestClasses(TestDescriptor parent) {
 		if (parent instanceof ClassBasedTestDescriptor) {
 			ClassBasedTestDescriptor parentClassDescriptor = (ClassBasedTestDescriptor) parent;
 			List<Class<?>> result = new ArrayList<>(parentClassDescriptor.getEnclosingTestClasses());
@@ -77,14 +85,20 @@ public class NestedClassTestDescriptor extends ClassBasedTestDescriptor {
 
 	@Override
 	protected TestInstances instantiateTestClass(JupiterEngineExecutionContext parentExecutionContext,
-			ExtensionRegistry registry, ExtensionRegistrar registrar, ExtensionContext extensionContext,
-			ThrowableCollector throwableCollector) {
+			ExtensionContextSupplier extensionContext, ExtensionRegistry registry,
+			JupiterEngineExecutionContext context) {
 
 		// Extensions registered for nested classes and below are not to be used for instantiating and initializing outer classes
 		ExtensionRegistry extensionRegistryForOuterInstanceCreation = parentExecutionContext.getExtensionRegistry();
 		TestInstances outerInstances = parentExecutionContext.getTestInstancesProvider().getTestInstances(
-			extensionRegistryForOuterInstanceCreation, registrar, throwableCollector);
+			extensionRegistryForOuterInstanceCreation, context);
 		return instantiateTestClass(Optional.of(outerInstances), registry, extensionContext);
+	}
+
+	@Override
+	public Function<ResourceLocksProvider, Set<ResourceLocksProvider.Lock>> getResourceLocksProviderEvaluator() {
+		return enclosingInstanceTypesDependentResourceLocksProviderEvaluator(this::getEnclosingTestClasses, (provider,
+				enclosingInstanceTypes) -> provider.provideForNestedClass(enclosingInstanceTypes, getTestClass()));
 	}
 
 }

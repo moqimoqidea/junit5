@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,7 +11,7 @@
 package org.junit.platform.engine.support.descriptor;
 
 import static java.util.stream.Collectors.toCollection;
-import static org.junit.platform.commons.util.AnnotationUtils.findRepeatableAnnotations;
+import static org.junit.platform.commons.support.AnnotationSupport.findRepeatableAnnotations;
 
 import java.util.LinkedHashSet;
 import java.util.Set;

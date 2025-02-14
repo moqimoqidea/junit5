@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 
 import org.junit.platform.commons.util.Preconditions;
 import org.junit.platform.commons.util.StringUtils;
+import org.junit.platform.engine.DiscoverySelector;
 import org.junit.platform.engine.discovery.ClassSelector;
 import org.junit.platform.engine.discovery.ClasspathResourceSelector;
 import org.junit.platform.engine.discovery.DirectorySelector;
@@ -67,15 +68,18 @@ class AdditionalDiscoverySelectors {
 		// @formatter:on
 	}
 
-	static List<ClassSelector> selectClasses(Class<?>... classes) {
+	static Stream<ClassSelector> selectClasses(Class<?>... classes) {
 		Preconditions.notNull(classes, "classes must not be null");
 		Preconditions.containsNoNullElements(classes, "Individual classes must not be null");
 
-		// @formatter:off
-		return uniqueStreamOf(classes)
-				.map(DiscoverySelectors::selectClass)
-				.collect(Collectors.toList());
-		// @formatter:on
+		return uniqueStreamOf(classes).map(DiscoverySelectors::selectClass);
+	}
+
+	static Stream<ClassSelector> selectClasses(String... classNames) {
+		Preconditions.notNull(classNames, "classNames must not be null");
+		Preconditions.containsNoNullElements(classNames, "Individual class names must not be null");
+
+		return uniqueStreamOf(classNames).map(DiscoverySelectors::selectClass);
 	}
 
 	static List<ModuleSelector> selectModules(String... moduleNames) {
@@ -109,8 +113,13 @@ class AdditionalDiscoverySelectors {
 		return DiscoverySelectors.selectClasspathResource(classpathResourceName, FilePosition.from(line, column));
 	}
 
-	private static <T> Stream<T> uniqueStreamOf(T[] packageNames) {
-		return Arrays.stream(packageNames).distinct();
+	static List<DiscoverySelector> parseIdentifiers(String[] identifiers) {
+		return DiscoverySelectors.parseAll(identifiers) //
+				.collect(Collectors.toList());
+	}
+
+	private static <T> Stream<T> uniqueStreamOf(T[] elements) {
+		return Arrays.stream(elements).distinct();
 	}
 
 }

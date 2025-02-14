@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -23,7 +23,7 @@ import org.apiguardian.api.API;
 
 /**
  * {@code @ArgumentsSource} is a {@linkplain Repeatable repeatable} annotation
- * that is used to register {@linkplain ArgumentsProvider argument providers}
+ * that is used to register {@linkplain ArgumentsProvider arguments providers}
  * for the annotated test method.
  *
  * <p>{@code @ArgumentsSource} may also be used as a meta-annotation in order to

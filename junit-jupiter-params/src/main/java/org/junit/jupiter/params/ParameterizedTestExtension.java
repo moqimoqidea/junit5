@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -10,12 +10,12 @@
 
 package org.junit.jupiter.params;
 
-import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
-import static org.junit.platform.commons.util.AnnotationUtils.findRepeatableAnnotations;
-import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
+import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
+import static org.junit.platform.commons.support.AnnotationSupport.findRepeatableAnnotations;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
@@ -27,19 +27,17 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.ArgumentsProvider;
 import org.junit.jupiter.params.provider.ArgumentsSource;
 import org.junit.jupiter.params.support.AnnotationConsumerInitializer;
-import org.junit.platform.commons.JUnitException;
 import org.junit.platform.commons.util.ExceptionUtils;
 import org.junit.platform.commons.util.Preconditions;
-import org.junit.platform.commons.util.ReflectionUtils;
 
 /**
  * @since 5.0
  */
 class ParameterizedTestExtension implements TestTemplateInvocationContextProvider {
 
-	private static final String METHOD_CONTEXT_KEY = "context";
+	static final String METHOD_CONTEXT_KEY = "context";
 	static final String ARGUMENT_MAX_LENGTH_KEY = "junit.jupiter.params.displayname.argument.maxlength";
-	private static final String DEFAULT_DISPLAY_NAME = "{default_display_name}";
+	static final String DEFAULT_DISPLAY_NAME = "{default_display_name}";
 	static final String DISPLAY_NAME_PATTERN_KEY = "junit.jupiter.params.displayname.default";
 
 	@Override
@@ -48,19 +46,21 @@ class ParameterizedTestExtension implements TestTemplateInvocationContextProvide
 			return false;
 		}
 
-		Method testMethod = context.getTestMethod().get();
-		if (!isAnnotated(testMethod, ParameterizedTest.class)) {
+		Method templateMethod = context.getTestMethod().get();
+		Optional<ParameterizedTest> annotation = findAnnotation(templateMethod, ParameterizedTest.class);
+		if (!annotation.isPresent()) {
 			return false;
 		}
 
-		ParameterizedTestMethodContext methodContext = new ParameterizedTestMethodContext(testMethod);
+		ParameterizedTestMethodContext methodContext = new ParameterizedTestMethodContext(templateMethod,
+			annotation.get());
 
 		Preconditions.condition(methodContext.hasPotentiallyValidSignature(),
 			() -> String.format(
 				"@ParameterizedTest method [%s] declares formal parameters in an invalid order: "
 						+ "argument aggregators must be declared after any indexed arguments "
 						+ "and before any arguments resolved by another ParameterResolver.",
-				testMethod.toGenericString()));
+				templateMethod.toGenericString()));
 
 		getStore(context).put(METHOD_CONTEXT_KEY, methodContext);
 
@@ -71,50 +71,41 @@ class ParameterizedTestExtension implements TestTemplateInvocationContextProvide
 	public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(
 			ExtensionContext extensionContext) {
 
-		Method templateMethod = extensionContext.getRequiredTestMethod();
-		String displayName = extensionContext.getDisplayName();
-		ParameterizedTestMethodContext methodContext = getStore(extensionContext)//
-				.get(METHOD_CONTEXT_KEY, ParameterizedTestMethodContext.class);
-		int argumentMaxLength = extensionContext.getConfigurationParameter(ARGUMENT_MAX_LENGTH_KEY,
-			Integer::parseInt).orElse(512);
-		ParameterizedTestNameFormatter formatter = createNameFormatter(extensionContext, templateMethod, methodContext,
-			displayName, argumentMaxLength);
+		ParameterizedTestMethodContext methodContext = getMethodContext(extensionContext);
+		ParameterizedTestNameFormatter formatter = createNameFormatter(extensionContext, methodContext);
 		AtomicLong invocationCount = new AtomicLong(0);
 
+		List<ArgumentsSource> argumentsSources = findRepeatableAnnotations(methodContext.method, ArgumentsSource.class);
+
+		Preconditions.notEmpty(argumentsSources,
+			"Configuration error: You must configure at least one arguments source for this @ParameterizedTest");
+
 		// @formatter:off
-		return findRepeatableAnnotations(templateMethod, ArgumentsSource.class)
+		return argumentsSources
 				.stream()
 				.map(ArgumentsSource::value)
-				.map(this::instantiateArgumentsProvider)
-				.map(provider -> AnnotationConsumerInitializer.initialize(templateMethod, provider))
+				.map(clazz -> ParameterizedTestSpiInstantiator.instantiate(ArgumentsProvider.class, clazz, extensionContext))
+				.map(provider -> AnnotationConsumerInitializer.initialize(methodContext.method, provider))
 				.flatMap(provider -> arguments(provider, extensionContext))
-				.map(Arguments::get)
-				.map(arguments -> consumedArguments(arguments, methodContext))
 				.map(arguments -> {
 					invocationCount.incrementAndGet();
 					return createInvocationContext(formatter, methodContext, arguments, invocationCount.intValue());
 				})
 				.onClose(() ->
-						Preconditions.condition(invocationCount.get() > 0,
+						Preconditions.condition(invocationCount.get() > 0 || methodContext.annotation.allowZeroInvocations(),
 								"Configuration error: You must configure at least one set of arguments for this @ParameterizedTest"));
 		// @formatter:on
 	}
 
-	@SuppressWarnings("ConstantConditions")
-	private ArgumentsProvider instantiateArgumentsProvider(Class<? extends ArgumentsProvider> clazz) {
-		try {
-			return ReflectionUtils.newInstance(clazz);
-		}
-		catch (Exception ex) {
-			if (ex instanceof NoSuchMethodException) {
-				String message = String.format("Failed to find a no-argument constructor for ArgumentsProvider [%s]. "
-						+ "Please ensure that a no-argument constructor exists and "
-						+ "that the class is either a top-level class or a static nested class",
-					clazz.getName());
-				throw new JUnitException(message, ex);
-			}
-			throw ex;
-		}
+	@Override
+	public boolean mayReturnZeroTestTemplateInvocationContexts(ExtensionContext extensionContext) {
+		ParameterizedTestMethodContext methodContext = getMethodContext(extensionContext);
+		return methodContext.annotation.allowZeroInvocations();
+	}
+
+	private ParameterizedTestMethodContext getMethodContext(ExtensionContext extensionContext) {
+		return getStore(extensionContext)//
+				.get(METHOD_CONTEXT_KEY, ParameterizedTestMethodContext.class);
 	}
 
 	private ExtensionContext.Store getStore(ExtensionContext context) {
@@ -122,22 +113,29 @@ class ParameterizedTestExtension implements TestTemplateInvocationContextProvide
 	}
 
 	private TestTemplateInvocationContext createInvocationContext(ParameterizedTestNameFormatter formatter,
-			ParameterizedTestMethodContext methodContext, Object[] arguments, int invocationIndex) {
+			ParameterizedTestMethodContext methodContext, Arguments arguments, int invocationIndex) {
+
 		return new ParameterizedTestInvocationContext(formatter, methodContext, arguments, invocationIndex);
 	}
 
-	private ParameterizedTestNameFormatter createNameFormatter(ExtensionContext extensionContext, Method templateMethod,
-			ParameterizedTestMethodContext methodContext, String displayName, int argumentMaxLength) {
-		ParameterizedTest parameterizedTest = findAnnotation(templateMethod, ParameterizedTest.class).get();
-		String pattern = parameterizedTest.name().equals(DEFAULT_DISPLAY_NAME)
-				? extensionContext.getConfigurationParameter(DISPLAY_NAME_PATTERN_KEY).orElse(
-					ParameterizedTest.DEFAULT_DISPLAY_NAME)
-				: parameterizedTest.name();
+	private ParameterizedTestNameFormatter createNameFormatter(ExtensionContext extensionContext,
+			ParameterizedTestMethodContext methodContext) {
+
+		String name = methodContext.annotation.name();
+		String pattern = name.equals(DEFAULT_DISPLAY_NAME)
+				? extensionContext.getConfigurationParameter(DISPLAY_NAME_PATTERN_KEY) //
+						.orElse(ParameterizedTest.DEFAULT_DISPLAY_NAME)
+				: name;
 		pattern = Preconditions.notBlank(pattern.trim(),
 			() -> String.format(
 				"Configuration error: @ParameterizedTest on method [%s] must be declared with a non-empty name.",
-				templateMethod));
-		return new ParameterizedTestNameFormatter(pattern, displayName, methodContext, argumentMaxLength);
+				methodContext.method));
+
+		int argumentMaxLength = extensionContext.getConfigurationParameter(ARGUMENT_MAX_LENGTH_KEY, Integer::parseInt) //
+				.orElse(512);
+
+		return new ParameterizedTestNameFormatter(pattern, extensionContext.getDisplayName(), methodContext,
+			argumentMaxLength);
 	}
 
 	protected static Stream<? extends Arguments> arguments(ArgumentsProvider provider, ExtensionContext context) {
@@ -147,14 +145,6 @@ class ParameterizedTestExtension implements TestTemplateInvocationContextProvide
 		catch (Exception e) {
 			throw ExceptionUtils.throwAsUncheckedException(e);
 		}
-	}
-
-	private Object[] consumedArguments(Object[] arguments, ParameterizedTestMethodContext methodContext) {
-		if (methodContext.hasAggregator()) {
-			return arguments;
-		}
-		int parameterCount = methodContext.getParameterCount();
-		return arguments.length > parameterCount ? Arrays.copyOf(arguments, parameterCount) : arguments;
 	}
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -37,7 +37,7 @@ public class GlobalSetupTeardownListener implements LauncherSessionListener {
 			@Override
 			public void testPlanExecutionStarted(TestPlan testPlan) {
 				//end::user_guide[]
-				if (!testPlan.getConfigurationParameters().getBoolean("enableHttpServer").orElse(false)) {
+				if (!testPlan.getConfigurationParameters().getBoolean("enableHttpServer").orElse(true)) {
 					// avoid starting multiple HTTP servers unnecessarily from UsingTheLauncherDemo
 					return;
 				}

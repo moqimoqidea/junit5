@@ -1,5 +1,6 @@
 plugins {
 	id("junitbuild.java-library-conventions")
+	id("junitbuild.native-image-properties")
 	`java-test-fixtures`
 }
 
@@ -17,11 +18,12 @@ dependencies {
 tasks {
 	jar {
 		bundle {
+			val version = project.version
 			bnd("""
 				Provide-Capability:\
 					org.junit.platform.launcher;\
 						org.junit.platform.launcher='junit-platform-launcher';\
-						version:Version="${'$'}{version_cleanup;${project.version}}"
+						version:Version="${'$'}{version_cleanup;${version}}"
 			""")
 		}
 	}

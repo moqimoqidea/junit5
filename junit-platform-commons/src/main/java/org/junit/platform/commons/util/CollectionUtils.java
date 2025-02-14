@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collector;
@@ -55,7 +56,7 @@ public final class CollectionUtils {
 	}
 
 	/**
-	 * Read the only element of a collection of size 1.
+	 * Get the only element of a collection of size 1.
 	 *
 	 * @param collection the collection to get the element from
 	 * @return the only element of the collection
@@ -66,7 +67,29 @@ public final class CollectionUtils {
 		Preconditions.notNull(collection, "collection must not be null");
 		Preconditions.condition(collection.size() == 1,
 			() -> "collection must contain exactly one element: " + collection);
-		return collection.iterator().next();
+		return firstElement(collection);
+	}
+
+	/**
+	 * Get the first element of the supplied collection unless it's empty.
+	 *
+	 * @param collection the collection to get the element from
+	 * @return the first element of the collection; empty if the collection is empty
+	 * @throws PreconditionViolationException if the collection is {@code null}
+	 * @since 1.11
+	 */
+	@API(status = INTERNAL, since = "1.11")
+	public static <T> Optional<T> getFirstElement(Collection<T> collection) {
+		Preconditions.notNull(collection, "collection must not be null");
+		return collection.isEmpty() //
+				? Optional.empty() //
+				: Optional.ofNullable(firstElement(collection));
+	}
+
+	private static <T> T firstElement(Collection<T> collection) {
+		return collection instanceof List //
+				? ((List<T>) collection).get(0) //
+				: collection.iterator().next();
 	}
 
 	/**
@@ -103,8 +126,7 @@ public final class CollectionUtils {
 	 * <pre class="code">
 	 * public static &lt;T&gt; Collector&lt;T, ?, List&lt;T&gt;&gt; toUnmodifiableList(Supplier&lt;List&lt;T&gt;&gt; listSupplier) {
 	 *     return Collectors.collectingAndThen(Collectors.toCollection(listSupplier), Collections::unmodifiableList);
-	 * }
-	 * </pre>
+	 * }</pre>
 	 *
 	 * @param <T> the type of the input elements
 	 * @return a {@code Collector} which collects all the input elements into

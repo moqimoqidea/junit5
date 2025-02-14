@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -11,39 +11,43 @@
 package platform.tooling.support.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertLinesMatch;
+import static platform.tooling.support.tests.Projects.copyToWorkspace;
 import static platform.tooling.support.tests.XmlAssertions.verifyContainsExpectedStartedOpenTestReport;
 
+import java.nio.file.Path;
 import java.util.List;
 
-import de.sormuras.bartholdy.tool.Java;
+import de.skuzzle.test.snapshots.Snapshot;
+import de.skuzzle.test.snapshots.junit5.EnableSnapshotTests;
 
 import org.apache.tools.ant.Main;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.platform.tests.process.OutputFiles;
 
-import platform.tooling.support.Request;
+import platform.tooling.support.ProcessStarters;
 
 /**
  * @since 1.3
  */
+@EnableSnapshotTests
 class AntStarterTests {
 
 	@Test
-	void ant_starter() {
-		var request = Request.builder() //
-				.setTool(new Java()) //
-				.setProject("ant-starter") //
+	@Timeout(60)
+	void ant_starter(@TempDir Path workspace, @FilePrefix("ant") OutputFiles outputFiles, Snapshot snapshot)
+			throws Exception {
+
+		var result = ProcessStarters.java() //
+				.workingDir(copyToWorkspace(Projects.JUPITER_STARTER, workspace)) //
 				.addArguments("-cp", System.getProperty("antJars"), Main.class.getName()) //
-				.addArguments("-verbose") //
-				.build();
+				.redirectOutput(outputFiles) //
+				.startAndWait();
 
-		var result = request.run();
-
-		assertFalse(result.isTimedOut(), () -> "tool timed out: " + result);
-
-		assertEquals(0, result.getExitCode());
-		assertEquals("", result.getOutput("err"), "error log isn't empty");
+		assertEquals(0, result.exitCode());
+		assertEquals("", result.stdErr(), "error log isn't empty");
 		assertLinesMatch(List.of(">> HEAD >>", //
 			"test.junit.launcher:", //
 			">>>>", //
@@ -56,9 +60,9 @@ class AntStarterTests {
 			"     \\[java\\] \\[         5 tests successful      \\]", //
 			"     \\[java\\] \\[         0 tests failed          \\]", //
 			">> TAIL >>"), //
-			result.getOutputLines("out"));
+			result.stdOutLines());
 
-		var testResultsDir = Request.WORKSPACE.resolve(request.getWorkspace()).resolve("build/test-report");
-		verifyContainsExpectedStartedOpenTestReport(testResultsDir);
+		var testResultsDir = workspace.resolve("build/test-report");
+		verifyContainsExpectedStartedOpenTestReport(testResultsDir, snapshot);
 	}
 }

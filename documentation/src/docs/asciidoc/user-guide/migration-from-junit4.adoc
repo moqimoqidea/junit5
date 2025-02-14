@@ -36,6 +36,40 @@ annotated with `@Category(Example.class)`, it will be tagged with `"com.acme.Exa
 Similar to the `Categories` runner in JUnit 4, this information can be used to filter the
 discovered tests before executing them (see <<running-tests>> for details).
 
+[[migrating-from-junit4-parallel-execution]]
+=== Parallel Execution
+
+The JUnit Vintage test engine supports parallel execution of top-level test classes and test methods,
+allowing existing JUnit 3 and JUnit 4 tests to benefit from improved performance through
+concurrent test execution. It can be enabled and configured using the following
+<<running-tests-config-params, configuration parameters>>:
+
+`junit.vintage.execution.parallel.enabled=true|false`::
+  Enable/disable parallel execution (defaults to `false`). Requires opt-in for `classes`
+  or `methods` to be executed in parallel using the configuration parameters below.
+
+`junit.vintage.execution.parallel.classes=true|false`::
+  Enable/disable parallel execution of test classes (defaults to `false`).
+
+`junit.vintage.execution.parallel.methods=true|false`::
+  Enable/disable parallel execution of test methods (defaults to `false`).
+
+`junit.vintage.execution.parallel.pool-size=<number>`::
+  Specifies the size of the thread pool to be used for parallel execution. By default, the
+  number of available processors is used.
+
+Example configuration in `junit-platform.properties`:
+
+[source,properties]
+----
+junit.vintage.execution.parallel.enabled=true
+junit.vintage.execution.parallel.classes=true
+junit.vintage.execution.parallel.methods=true
+junit.vintage.execution.parallel.pool-size=4
+----
+
+With these properties set, the `VintageTestEngine` will execute tests in parallel,
+potentially significantly reducing the overall test suite execution time.
 
 [[migrating-from-junit4-tips]]
 === Migration Tips
@@ -63,6 +97,10 @@ tests to JUnit Jupiter.
 * `@Rule` and `@ClassRule` no longer exist; superseded by `@ExtendWith` and
   `@RegisterExtension`.
   - See also <<migrating-from-junit4-rule-support>>.
+* `@Test(expected = ...)` and the `ExpectedException` rule no longer exist; use
+  `Assertions.assertThrows(...)` instead.
+  - See <<migrating-from-junit4-rule-support>> if you still need to use
+    `ExpectedException`.
 * Assertions and assumptions in JUnit Jupiter accept the failure message as their last
   argument instead of the first one.
   - See <<migrating-from-junit4-failure-message-arguments>> for details.

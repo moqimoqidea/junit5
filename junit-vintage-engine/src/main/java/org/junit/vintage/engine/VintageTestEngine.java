@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2023 the original author or authors.
+ * Copyright 2015-2025 the original author or authors.
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v2.0 which
@@ -14,7 +14,6 @@ import static org.apiguardian.api.API.Status.INTERNAL;
 import static org.junit.platform.engine.TestExecutionResult.successful;
 import static org.junit.vintage.engine.descriptor.VintageTestDescriptor.ENGINE_ID;
 
-import java.util.Iterator;
 import java.util.Optional;
 
 import org.apiguardian.api.API;
@@ -24,10 +23,9 @@ import org.junit.platform.engine.ExecutionRequest;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.TestEngine;
 import org.junit.platform.engine.UniqueId;
-import org.junit.vintage.engine.descriptor.RunnerTestDescriptor;
 import org.junit.vintage.engine.descriptor.VintageEngineDescriptor;
 import org.junit.vintage.engine.discovery.VintageDiscoverer;
-import org.junit.vintage.engine.execution.RunnerExecutor;
+import org.junit.vintage.engine.execution.VintageExecutor;
 
 /**
  * The JUnit Vintage {@link TestEngine}.
@@ -69,17 +67,7 @@ public final class VintageTestEngine implements TestEngine {
 		EngineExecutionListener engineExecutionListener = request.getEngineExecutionListener();
 		VintageEngineDescriptor engineDescriptor = (VintageEngineDescriptor) request.getRootTestDescriptor();
 		engineExecutionListener.executionStarted(engineDescriptor);
-		executeAllChildren(engineDescriptor, engineExecutionListener);
+		new VintageExecutor(engineDescriptor, engineExecutionListener, request).executeAllChildren();
 		engineExecutionListener.executionFinished(engineDescriptor, successful());
 	}
-
-	private void executeAllChildren(VintageEngineDescriptor engineDescriptor,
-			EngineExecutionListener engineExecutionListener) {
-		RunnerExecutor runnerExecutor = new RunnerExecutor(engineExecutionListener);
-		for (Iterator<TestDescriptor> iterator = engineDescriptor.getModifiableChildren().iterator(); iterator.hasNext();) {
-			runnerExecutor.execute((RunnerTestDescriptor) iterator.next());
-			iterator.remove();
-		}
-	}
-
 }
