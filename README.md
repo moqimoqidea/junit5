@@ -12,7 +12,7 @@ This repository is the home of JUnit Platform, Jupiter, and Vintage.
 
 ## Latest Releases
 
-- General Availability (GA): [JUnit 5.13.0](https://github.com/junit-team/junit5/releases/tag/r5.13.0) (May 30, 2025)
+- General Availability (GA): [JUnit 5.13.1](https://github.com/junit-team/junit5/releases/tag/r5.13.1) (June 7, 2025)
 - Preview (Milestone/Release Candidate): [JUnit 5.13.0-RC1](https://github.com/junit-team/junit5/releases/tag/r5.13.0-RC1) (May 16, 2025)
 
 ## Documentation
@@ -70,7 +70,7 @@ task outputs from previous CI builds.
 
 ## Building from Source
 
-You need [JDK 21] to build JUnit. [Gradle toolchains] are used to detect and
+You need [JDK 24] to build JUnit. [Gradle toolchains] are used to detect and
 potentially download additional JDKs for compilation and test execution.
 
 All modules can be _built_ and _tested_ with the [Gradle Wrapper] using the following command:
@@ -100,7 +100,7 @@ of the JUnit Platform, JUnit Jupiter, and JUnit Vintage.
 [Gradle Wrapper]: https://docs.gradle.org/current/userguide/gradle_wrapper.html#sec:using_wrapper
 [JaCoCo]: https://www.eclemma.org/jacoco/
 [Javadoc]: https://junit.org/junit5/docs/current/api/
-[JDK 21]: https://javaalmanac.io/jdk/21/
+[JDK 24]: https://javaalmanac.io/jdk/24/
 [Release Notes]: https://junit.org/junit5/docs/current/release-notes/
 [Samples]: https://github.com/junit-team/junit5-samples
 [StackOverflow]: https://stackoverflow.com/questions/tagged/junit5
