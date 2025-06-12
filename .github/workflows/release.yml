@@ -63,7 +63,7 @@ jobs:
             --remote-repo-url=${{ env.STAGING_REPO_URL }}
       - name: Generate build provenance attestations
         if: ${{ inputs.dryRun == false }}
-        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: build/repo/**/*.jar
 
@@ -87,9 +87,9 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 21
+          java-version: 24
           distribution: temurin
-      - uses: sbt/setup-sbt@69a46ab4acd4316aa16e68d91a9249a98d7e78d5 # v1.1.8
+      - uses: sbt/setup-sbt@6c68d2fe8dfbc0a0534d70101baa2e0420e1a506 # v1.1.9
       - name: Update JUnit dependencies in samples
         run: java src/Updater.java ${{ inputs.releaseVersion }}
         working-directory: junit5-samples
@@ -245,9 +245,9 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: 21
+          java-version: 24
           distribution: temurin
-      - uses: sbt/setup-sbt@69a46ab4acd4316aa16e68d91a9249a98d7e78d5 # v1.1.8
+      - uses: sbt/setup-sbt@6c68d2fe8dfbc0a0534d70101baa2e0420e1a506 # v1.1.9
       - name: Update JUnit dependencies in samples
         run: java src/Updater.java ${{ inputs.releaseVersion }}
       - name: Build samples
