@@ -109,10 +109,9 @@ val ota4jDocVersion = libs.versions.opentest4j.map { if (it.isSnapshot()) "snaps
 val apiGuardianDocVersion = libs.versions.apiguardian.map { if (it.isSnapshot()) "snapshot" else it }.get()
 
 gitPublish {
-	repoUri = "https://github.com/junit-team/junit5.git"
-	referenceRepoUri = rootDir.toURI().toString()
+	repoUri = "https://github.com/junit-team/docs.junit.org.git"
 
-	branch = "gh-pages"
+	branch = "main"
 	sign = false
 	fetchDepth = 1
 
@@ -121,14 +120,14 @@ gitPublish {
 
 	contents {
 		from(docsDir)
-		into("docs")
+		into(".")
 	}
 
 	preserve {
 		include("**/*")
-		exclude("docs/$docsVersion/**")
+		exclude("$docsVersion/**")
 		if (replaceCurrentDocs) {
-			exclude("docs/current/**")
+			exclude("current/**")
 		}
 	}
 }
@@ -165,7 +164,7 @@ tasks {
 		args.addAll("--config=junit.platform.reporting.open.xml.enabled=true")
 		args.addAll("--config=junit.platform.output.capture.stdout=true")
 		args.addAll("--config=junit.platform.output.capture.stderr=true")
-		args.addAll("--config=junit.platform.discovery.issue.severity.critical=warn")
+		args.addAll("--config=junit.platform.discovery.issue.severity.critical=warning")
 		outputs.dir(consoleLauncherTestReportsDir)
 		argumentProviders.add(CommandLineArgumentProvider {
 			listOf(
@@ -202,7 +201,7 @@ tasks {
 		(options as JUnitPlatformOptions).apply {
 			includeEngines("junit-vintage")
 			includeTags("timeout")
-			systemProperty("junit.platform.discovery.issue.severity.critical", "warn")
+			systemProperty("junit.platform.discovery.issue.severity.critical", "warning")
 		}
 	}
 
@@ -372,7 +371,7 @@ tasks {
 			include("user-guide/index.adoc")
 		}
 		copyAllResources()
-		attributes(mapOf("releaseNotesUrl" to "https://junit.org/junit5/docs/$docsVersion/release-notes/"))
+		attributes(mapOf("releaseNotesUrl" to "https://docs.junit.org/$docsVersion/release-notes/"))
 	}
 
 	val downloadJavadocElementLists by registering {
@@ -477,7 +476,7 @@ tasks {
 		}
 		from(inputDir) {
 			filesMatching("**/*.html") {
-				val favicon = "<link rel=\"icon\" type=\"image/png\" href=\"https://junit.org/junit5/assets/img/junit5-logo.png\">"
+				val favicon = "<link rel=\"icon\" type=\"image/png\" href=\"https://junit.org/assets/img/junit5-logo.png\">"
 				filter { line ->
 					var result = if (line.startsWith("<head>")) line.replace("<head>", "<head>$favicon") else line
 					externalModulesWithoutModularJavadoc.forEach { (moduleName, baseUrl) ->

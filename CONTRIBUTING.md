@@ -125,11 +125,8 @@ See [`ExtensionContext`](junit-jupiter-api/src/main/java/org/junit/jupiter/api/e
 This project uses JSpecify's annotation to indicate nullability. In general, the approach
 is as follows:
 
-- The Gradle build is set up to treat all code as being `@NullMarked`
-- The descriptor of each module is annotated with `@NullMarked` for IDEs such as IntelliJ
-  IDEA to treat code correctly.
-- Fields, parameters, return types etc. may be annotated with `@Nullable`
-- A package can be excluded (temporarily) using `@NullUnmarked`
+- All packages are annotated with `@NullMarked`
+- Types of fields, parameters, return types etc. may be annotated with `@Nullable`
 
 ### Tests
 
@@ -164,7 +161,7 @@ is as follows:
 
 The JUnit project uses the `@API` annotation from [API Guardian](https://github.com/apiguardian-team/apiguardian).
 Publicly available interfaces, classes, and methods have a defined lifecycle
-which is described in detail in the [User Guide](https://junit.org/junit5/docs/current/user-guide/#api-evolution).
+which is described in detail in the [User Guide](https://docs.junit.org/current/user-guide/#api-evolution).
 
 That following describes the deprecation process followed for API items.
 
